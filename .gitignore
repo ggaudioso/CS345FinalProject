@@ -3,6 +3,8 @@
 
 *.classpath
 
+*.cache-main
+
 # sbt specific
 .cache
 .history
