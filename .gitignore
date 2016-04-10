@@ -4,6 +4,8 @@
 *.classpath
 
 *.cache-main
+MathLanguage_Eclipse/.cache-main
+
 
 # sbt specific
 .cache

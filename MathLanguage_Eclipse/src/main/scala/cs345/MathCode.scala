@@ -11,9 +11,10 @@ class MathCode {
     def / (rhs: Value):Value
   }
   
-  
-  
- //TYPES IN OUR LANGUAGE AND THEIR OPERATORS:
+ 
+  //***************************************************************************
+  //* TYPES IN OUR LANGUAGE AND THEIR OPERATORS:
+  //***************************************************************************
   
   //integers
   case class IntValue(val x:Int) extends Value {
@@ -98,8 +99,9 @@ class MathCode {
   
   
   
-  
- //SET OF INSTRUCTIONS IN OUR LANGUAGE:
+  //***************************************************************************
+  //* INSTRUCTIONS IN OUR LANGUAGE:
+  //***************************************************************************
   
   //Assignment syntax: LET (symbol) BE value
   case class LET(sym:Symbol) {
@@ -108,7 +110,7 @@ class MathCode {
     }
   }
   
-  //Println syntax: PRINTLN (whatever)
+  //PRINTLN syntax: PRINTLN (whatever)
   def PRINTLN(value: Value):Unit = value match {
     case IntValue(intNum) => println(intNum)
     case DoubleValue(realNum) => println(realNum)
@@ -123,7 +125,7 @@ class MathCode {
     } 
   }
   
-   //Print syntax: PRINT (whatever)
+   //PRINT syntax: PRINT (whatever)
    def PRINT(value: Value):Unit = value match {
     case IntValue(intNum) => print(intNum)
     case DoubleValue(realNum) => print(realNum)
