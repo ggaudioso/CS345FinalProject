@@ -94,7 +94,7 @@ class MathCode {
     def + (rhs: Value): Value = Compound("+", this, rhs) 
     def - (rhs: Value): Value = Compound("-", this, rhs) 
     def * (rhs: Value): Value = Compound("*", this, rhs) 
-    def / (rhs: Value): Value = Compound("/", this, rhs) 
+    def / (rhs: Value): Value = Compound("/", this, rhs)
   }
   
   
@@ -120,9 +120,9 @@ class MathCode {
       //eg: compound(*, compound(+, x, 4), 2) now is x + 4 * 2 but should be (x + 4) * 2
       print("(")
       PRINT(lhs)
-      print(")")
       print(" " + op + " ")
       PRINT(rhs)
+      print(")")
       println;
     }
   }
@@ -133,9 +133,12 @@ class MathCode {
     case DoubleValue(realNum) => print(realNum)
     case Unbound(sym) => print(sym) 
     case Compound(op,lhs,rhs) => {
+      print("(")
       PRINT(lhs)
+      
       print(" " + op + " ")
       PRINT(rhs)
+      print(")")
     }
   }
    
@@ -143,6 +146,37 @@ class MathCode {
   //* println method for Strings
   //*******************************
   def PRINTSTRING(value : String) : Unit = println(value)
+  
+  
+  //*******************************
+  //* Runs the test() method when
+  //* used in the DSL
+  //*******************************
+  def TEST() : Unit = test()
+  
+  /**
+   * Arbitrary test method.
+   */
+  def test()
+  {
+    var compound1 = Compound("+", IntValue(1), IntValue(3))
+    var compound2 = Compound("-", compound1, IntValue(45))
+    var compound3 = Compound("*", compound1, compound2)
+    if (allIntOrDoubles(compound3))
+    {
+      PRINTLN(compound3)
+      PRINTSTRING("SUCCESS")
+    }
+    else
+    {
+      PRINTLN(compound3)
+      PRINTSTRING("FAIL")
+    }
+    
+  }
+  
+  
+  
   
    
  //STUFF TO DEAL WITH VARIABLES:
@@ -154,5 +188,132 @@ class MathCode {
   implicit def variableLookup(sym:Symbol):Value = scope.get(sym) match {
     case Some(value) => value
     case None => Unbound(sym)
+  }
+  
+  
+  //***************************************************************************
+  //* HELPER METHODS.
+  //***************************************************************************
+  
+  /**
+   * Returns true iff the given compound is made purely of
+   * IntValues or DoubleValues
+   */
+  def allIntOrDoubles(compound: Compound): Boolean =
+  {
+    // Base case: Both LHS and RHS are doubles or reals.
+    var lhsTerminal: Boolean = isIntValue(compound.lhs) || isDoubleValue(compound.lhs);
+    var rhsTerminal: Boolean = isIntValue(compound.rhs) || isDoubleValue(compound.rhs);
+    
+    if (lhsTerminal && rhsTerminal)
+    {
+      return true;
+    }
+    
+    // Otherwise, make sure each side is a compound and recursively
+    // check if it is made of all terminals.
+    else
+    {
+      // Assume both lhs and rhs are not all terminals.
+      var lhsAllTerminals: Boolean = false;
+      var rhsAllTerminals: Boolean = false;
+      
+      if (lhsTerminal)
+      {
+        lhsAllTerminals = true;
+      }
+      
+      if (rhsTerminal)
+      {
+        rhsAllTerminals = true;
+      }
+      
+      // Find out if the lhs is all terminals.
+      if (isCompound(compound.lhs))
+      {
+        if (allIntOrDoubles(compound.lhs.asInstanceOf[Compound]))
+        {
+          lhsAllTerminals = true
+        }
+        else
+        {
+          lhsAllTerminals = false;
+        }
+      }
+      
+      // Find out if the rhs is all terminals.
+      if (isCompound(compound.rhs))
+      {
+        if (allIntOrDoubles(compound.rhs.asInstanceOf[Compound]))
+        {
+          rhsAllTerminals = true
+        }
+        else
+        {
+          rhsAllTerminals = false;
+        }
+      }
+      
+      // If the lhs or rhs was not a compound, then 
+      
+      
+      // If they're not both all terminals, return false.
+      if (!lhsAllTerminals || !rhsAllTerminals)
+      {
+        return false;
+      }
+      else
+      {
+        return true;
+      }
+      
+    }
+  }
+  
+  
+  /**
+   * Returns true iff the given Value is of type IntValue.
+   */
+  def isIntValue(value: Value): Boolean =
+  {
+    if (value.isInstanceOf[IntValue])
+    {
+      return true;
+    }
+    else
+    {
+      return false;
+    }
+  }
+  
+  
+  /**
+   * Returns true iff the given Value is of type DoubleValue.
+   */
+  def isDoubleValue(value: Value): Boolean =
+  {
+    if (value.isInstanceOf[DoubleValue])
+    {
+      return true;
+    }
+    else
+    {
+      return false;
+    }
+  }
+  
+  /**
+   * Returns true iff the given Value is of type Compound.
+   */
+  def isCompound(value: Value): Boolean =
+  {
+    if (value.isInstanceOf[Compound])
+    {
+      return true;
+    }
+    else
+    {
+      return false;
+    }
   }
 }

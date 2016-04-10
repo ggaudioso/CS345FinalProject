@@ -12,6 +12,8 @@ object MathDemo extends MathCode{
     PRINTLN('x * 2) //eg of need of parenthesis in print sometimes
     
     PRINTSTRING("\nPrinting a string\n")
+    
+    TEST
  
   }
 }
