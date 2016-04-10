@@ -110,20 +110,18 @@ class MathCode {
     }
   }
   
+  
+  val operators : String = "+-*/" //add more if needed later
+  val precedence = Array(4,4,3,3) //let's all stick to https://en.wikipedia.org/wiki/Order_of_operations
+  
   //PRINTLN syntax: PRINTLN (whatever)
   def PRINTLN(value: Value):Unit = value match {
     case IntValue(intNum) => println(intNum)
     case DoubleValue(realNum) => println(realNum)
     case Unbound(sym) => println(sym) 
     case Compound(op,lhs,rhs) => {
-      //TODO: add structure when needed with parenthesis
-      //eg: compound(*, compound(+, x, 4), 2) now is x + 4 * 2 but should be (x + 4) * 2
-      print("(")
-      PRINT(lhs)
-      print(" " + op + " ")
-      PRINT(rhs)
-      print(")")
-      println;
+      PRINT(value)
+      println
     }
   }
   
@@ -133,19 +131,38 @@ class MathCode {
     case DoubleValue(realNum) => print(realNum)
     case Unbound(sym) => print(sym) 
     case Compound(op,lhs,rhs) => {
-      print("(")
+      var parlhs = false 
+      var parrhs = false
+      lhs match {
+        case Compound(lop,llhs,lrhs) => {
+          if (precedence(operators.indexOf(lop)) > precedence(operators.indexOf(op))) 
+            parlhs = true
+        }
+        case _ => parlhs = false
+      }
+      rhs match {
+        case Compound(rop,rlhs,rrhs) => {
+          if (precedence(operators.indexOf(rop)) > precedence(operators.indexOf(op)))
+            parrhs = true
+        }
+        case _ => parrhs = false
+      }
+      if (parlhs) print("(")
       PRINT(lhs)
-      
+      if (parlhs) print(")")
       print(" " + op + " ")
+      if (parrhs) print("(")
       PRINT(rhs)
-      print(")")
+      if (parrhs) print(")")
     }
   }
    
-  //*******************************
-  //* println method for Strings
-  //*******************************
+  
+  // println method for Strings
   def PRINTSTRING(value : String) : Unit = println(value)
+  
+  
+  
   
   
   //*******************************

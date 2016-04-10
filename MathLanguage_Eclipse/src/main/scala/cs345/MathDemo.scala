@@ -13,7 +13,7 @@ object MathDemo extends MathCode{
     
     PRINTSTRING("\nPrinting a string\n")
     
-    TEST
+    //TEST
  
   }
 }
