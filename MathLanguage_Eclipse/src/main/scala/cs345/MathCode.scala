@@ -2,8 +2,8 @@ import scala.language.implicitConversions
 
 class MathCode {
   
-  //value can be integer (eg 3), double (eg 3.0), 
-  //unbound variable (eg x), or expression with variable (eg x+1) 
+  //value can be integer (e.g., 3), double (e.g., 3.0), 
+  //unbound variable (e.g., x), or expression with variable (e.g., x+1) 
   sealed trait Value {
     def + (rhs: Value):Value
     def - (rhs: Value):Value
@@ -118,15 +118,17 @@ class MathCode {
     case Compound(op,lhs,rhs) => {
       //TODO: add structure when needed with parenthesis
       //eg: compound(*, compound(+, x, 4), 2) now is x + 4 * 2 but should be (x + 4) * 2
+      print("(")
       PRINT(lhs)
+      print(")")
       print(" " + op + " ")
       PRINT(rhs)
       println;
-    } 
+    }
   }
   
-   //PRINT syntax: PRINT (whatever)
-   def PRINT(value: Value):Unit = value match {
+  //PRINT syntax: PRINT (whatever)
+  def PRINT(value: Value):Unit = value match {
     case IntValue(intNum) => print(intNum)
     case DoubleValue(realNum) => print(realNum)
     case Unbound(sym) => print(sym) 
@@ -134,10 +136,13 @@ class MathCode {
       PRINT(lhs)
       print(" " + op + " ")
       PRINT(rhs)
-    } 
+    }
   }
    
-  
+  //*******************************
+  //* println method for Strings
+  //*******************************
+  def PRINTSTRING(value : String) : Unit = println(value)
   
    
  //STUFF TO DEAL WITH VARIABLES:

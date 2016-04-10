@@ -10,6 +10,8 @@ object MathDemo extends MathCode{
     PRINTLN('x)
     PRINTLN('x + 2) //eg of what needs to be simplified
     PRINTLN('x * 2) //eg of need of parenthesis in print sometimes
+    
+    PRINTSTRING("\nPrinting a string\n")
  
   }
 }
