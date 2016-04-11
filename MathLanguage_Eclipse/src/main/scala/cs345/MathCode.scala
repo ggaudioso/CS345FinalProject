@@ -20,17 +20,17 @@ class MathCode {
   // Namely, a known number that isn't irrational
   case class NumberValue(num:Int, den:Int) extends Value {
     def + (rhs: Value):Value = rhs match {
-      case NumberValue(num2,den2) => NumberValue(num*den2 + num2*den,den*den2)
+      case NumberValue(num2,den2) => simplify(NumberValue(num*den2 + num2*den,den*den2))
       case Unbound(sym) => simplify_compound(Compound("+", this, sym))
       case c:Compound => simplify_compound(Compound("+", this, c))
     }
-    def - (rhs: Value):Value = NumberValue(-num, den) + rhs
+    def - (rhs: Value):Value = simplify(NumberValue(-num, den) + rhs)
     def * (rhs: Value):Value = rhs match {
-      case NumberValue(num2,den2) => NumberValue(num2*num, den2*den)
+      case NumberValue(num2,den2) => simplify(NumberValue(num2*num, den2*den))
       case otherwise => simplify_compound(Compound("*", this, rhs))
     }
     def / (rhs: Value):Value = rhs match {
-      case NumberValue(num2,den2) => NumberValue(num*den2, num2*den)
+      case NumberValue(num2,den2) => simplify(NumberValue(num*den2, num2*den))
       case otherwise => simplify_compound(Compound("/", this, rhs))
     }
   }
@@ -41,10 +41,10 @@ class MathCode {
   case class Unbound(sym:Symbol) extends Value {
      //TODO: might want to simplify unbounds here algebraically, by looking at what rhs is
     //eg: a  + 2-a should simplify to 2...
-    def + (rhs: Value): Value = Compound("+",this, rhs)
-    def - (rhs: Value): Value = Compound("-",this, rhs)
-    def * (rhs: Value): Value = Compound("*",this, rhs)
-    def / (rhs: Value): Value = Compound("/",this, rhs)
+    def + (rhs: Value): Value = simplify(Compound("+",this, rhs))
+    def - (rhs: Value): Value = simplify(Compound("-",this, rhs))
+    def * (rhs: Value): Value = simplify(Compound("*",this, rhs))
+    def / (rhs: Value): Value = simplify(Compound("/",this, rhs))
   }
 
    
@@ -52,12 +52,12 @@ class MathCode {
   case class Compound(op: String, lhs: Value, rhs: Value) extends Value {
     //TODO: simplify unbounds here algebraically in all cases of op
     //eg: a+2 + 2 should simplify to a+4...
-    def + (rhs: Value): Value = Compound("+", this, rhs)
-    def - (rhs: Value): Value = Compound("-", this, rhs) 
-    def * (rhs: Value): Value = Compound("*", this, rhs) 
-    def / (rhs: Value): Value = Compound("/", this, rhs)
+    def + (rhs: Value): Value = simplify(Compound("+", this, rhs))
+    def - (rhs: Value): Value = simplify(Compound("-", this, rhs))
+    def * (rhs: Value): Value = simplify(Compound("*", this, rhs))
+    def / (rhs: Value): Value = simplify(Compound("/", this, rhs))
   }
-  
+
   
   
   //***************************************************************************
@@ -99,7 +99,7 @@ class MathCode {
   
   //PRINT syntax: PRINT(whatever)
   def PRINT(value: Value): Unit = value match {
-    case NumberValue(n,d) => print(n/d)
+    case NumberValue(n,d) => print(n+"/"+d)
     case Unbound(sym) => print(sym) 
     case Compound(op,lhs,rhs) => {
       var parlhs = false 
@@ -155,8 +155,16 @@ class MathCode {
   //* HELPER METHODS.
   //***************************************************************************
   
+  def simplify_compound(v:Value):Value = simplify(v)
 
-  def simplify_compound(v:Value):Value = v match {
+  def simplify(v:Value):Value = v match {
+    case NumberValue(n,d) => {
+      val g = gcd(n,d)
+      val l = lcm(n,d)
+      //println(s"gcd($n,$d) = $g")
+      //println(s"lcm($n,$d) = $l")
+      NumberValue(n / g, d / g)
+    }
     case c:Compound => c.op match {
       case "+" => {
         // See whether lhs can be distributed across rhs (or vice-versa)
@@ -166,9 +174,9 @@ class MathCode {
             case Compound("+",lhs2:NumberValue,rhs2) => Compound("+", lhs2 + lhs_nv, rhs2)
             case Compound("+",lhs2,rhs2:NumberValue) => Compound("+", lhs2, rhs2 + lhs_nv)
             case rhs_nv:NumberValue => lhs_nv + rhs_nv
-            case otherwise => c//Compound("+", c.lhs, c.rhs)
+            case otherwise => c
           }
-          case otherwise => c//Compound("+", c.lhs, c.rhs)
+          case otherwise => c
         }
       }
       case "*" => {
@@ -182,26 +190,19 @@ class MathCode {
           case otherwise => c
         }
       }
+      case "/" => {
+        c.lhs match {
+          case lhs_nv:NumberValue => c.rhs match {
+            case rhs_nv:NumberValue => lhs_nv / rhs_nv
+            case otherwise => c
+          }
+          case otherwise => c
+        }
+      }
       case otherwise => c
     }
     case otherwise => v
   }
-
-
-
-
-  def simplify(value:Value):Value = {
-    value match {
-      //case IntValue(i) => new IntValue(i)
-      //case DoubleValue(d) => new DoubleValue(d)
-      case NumberValue(n,d) => new NumberValue(n,d)
-      case Unbound(s) => new Unbound(s)
-      case Compound(op,lhs,rhs) => {
-        value //jk, need to do a lot here :)
-      }
-    }
-  }
-  
   
   
   
@@ -288,6 +289,42 @@ class MathCode {
     //println(newRhs);
     
     return simplify_compound(Compound(op, newLhs, newRhs));
+  }
+
+  /**
+    * Returns the LCM of a and b
+    */
+  def lcm(a:Int, b:Int):Int = a*b / gcd(a,b);
+
+  /**
+    * Returns the greatest common denominator of a and b
+    */
+  def gcd(a:Int, b:Int):Int = {
+    if (a < 0) { return gcd(-a,b) }
+    if (b < 0) { return gcd(a,-b) }
+    if (a<b) { return gcd(b,a) } else {
+      var t1 = a;
+      var t2 = b;
+      while (t1 != t2) {
+        if (t1 > t2) {
+          t1 = t1 - t2;
+        } else {
+          t2 = t2 - t1;
+        }
+      }
+      return t1;
+      /*val q = a / b;
+      val r = a - q*b;
+      println(s"gcd($a,$b) => $q,$r")
+      if (r == 0) {
+        return -1;
+      }
+      val g = gcd(b, r);
+      if (g == -1) {
+        return r;
+      }
+      return g;*/
+    }
   }
   
   /**
