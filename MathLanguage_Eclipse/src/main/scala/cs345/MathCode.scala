@@ -114,8 +114,8 @@ class MathCode {
   val operators : String = "+-*/" //add more if needed later
   val precedence = Array(4,4,3,3) //let's all stick to https://en.wikipedia.org/wiki/Order_of_operations
   
-  //PRINTLN syntax: PRINTLN (whatever)
-  def PRINTLN(value: Value):Unit = value match {
+  //PRINTLN syntax: PRINTLN(whatever)
+  def PRINTLN(value: Value): Unit = value match {
     case IntValue(intNum) => println(intNum)
     case DoubleValue(realNum) => println(realNum)
     case Unbound(sym) => println(sym) 
@@ -125,8 +125,20 @@ class MathCode {
     }
   }
   
-  //PRINT syntax: PRINT (whatever)
-  def PRINT(value: Value):Unit = value match {
+  // PRINTLN_USE_BINDINGS syntax: PRINTLN(whatever)
+  def PRINTLN_USE_BINDINGS(value: Value): Unit = value match {
+    case IntValue(intNum) => println(intNum)
+    case DoubleValue(realNum) => println(realNum)
+    case Unbound(sym) => println(sym) 
+    case Compound(op,lhs,rhs) => {
+      PRINT(getCompoundWithBindings(value.asInstanceOf[Compound]))
+      println
+    }
+  }
+  
+  
+  //PRINT syntax: PRINT(whatever)
+  def PRINT(value: Value): Unit = value match {
     case IntValue(intNum) => print(intNum)
     case DoubleValue(realNum) => print(realNum)
     case Unbound(sym) => print(sym) 
@@ -158,7 +170,7 @@ class MathCode {
   }
    
   
-  // println method for Strings
+  // PRINTSTRING syntax: PRINTSTRING(myString: String)
   def PRINTSTRING(value : String) : Unit = println(value)
   
   
@@ -210,6 +222,8 @@ class MathCode {
    */
   def test()
   {
+    //variableLookup
+    
     var compound1 = Compound("+", IntValue(1), IntValue(3))
     var compound2 = Compound("-", compound1, IntValue(45))
     var compound3 = Compound("*", compound1, compound2)
@@ -226,6 +240,60 @@ class MathCode {
     
   }
    
+  /**
+   * Given a Compound, return a new Compound in which all unbound
+   * variables are replaced by their bindings, if such a binding
+   * exists.
+   */
+  def getCompoundWithBindings(compound: Compound): Compound =
+  {
+    // The final new lhs and rhs for this compound. These are
+    // built recursively.
+    var newLhs: Value = null;
+    var newRhs: Value = null;
+    var op: String = compound.op;
+    
+    // If the lhs is a compound, recursively call it.
+    if (isCompound(compound.lhs))
+    {
+      newLhs = getCompoundWithBindings(compound.lhs.asInstanceOf[Compound]);
+    }
+    // Else if lhs is a double of int, don't change it.
+    else if (isDoubleValue(compound.lhs) || isIntValue(compound.lhs))
+    {
+      newLhs = compound.lhs;
+    }
+    // Else it is a variable, and we can try to replace it with a binding,
+    // if one exists..
+    else
+    {
+      newLhs = variableLookup(compound.lhs.asInstanceOf[Unbound].sym);
+    }
+    
+    // If the rhs is a compound, recursively call it.
+    if (isCompound(compound.rhs))
+    {
+      newRhs = getCompoundWithBindings(compound.rhs.asInstanceOf[Compound]);
+    }
+    // Else if rhs is a double of int, don't change it.
+    else if (isDoubleValue(compound.rhs) || isIntValue(compound.rhs))
+    {
+      newRhs = compound.rhs;
+    }
+    // Else it is a variable, and we can try to replace it with a binding,
+    // if one exists..
+    else
+    {
+      newRhs = variableLookup(compound.rhs.asInstanceOf[Unbound].sym);
+    }
+    
+    //print("NEW LHS: ");
+    //println(newLhs);
+    //print("NEW RHS: ");
+    //println(newRhs);
+    
+    return Compound(op, newLhs, newRhs);
+  }
   
   /**
    * Returns true iff the given compound is made purely of
@@ -242,14 +310,14 @@ class MathCode {
       return true;
     }
     
-    // Otherwise, make sure each side is a compound and recursively
-    // check if it is made of all terminals.
+    // One of the sides is not a double or a real.
     else
     {
       // Assume both lhs and rhs are not all terminals.
       var lhsAllTerminals: Boolean = false;
       var rhsAllTerminals: Boolean = false;
       
+      // If we already know lhs or rhs is all terminals.
       if (lhsTerminal)
       {
         lhsAllTerminals = true;
@@ -260,7 +328,8 @@ class MathCode {
         rhsAllTerminals = true;
       }
       
-      // Find out if the lhs is all terminals.
+      // If lhs is a compound, then it is not a terminal. Thus,
+      // recursively check if it is made of all terminals.
       if (isCompound(compound.lhs))
       {
         if (allIntOrDoubles(compound.lhs.asInstanceOf[Compound]))
@@ -273,7 +342,8 @@ class MathCode {
         }
       }
       
-      // Find out if the rhs is all terminals.
+      // If rhs is a compound, then it is not a terminal. Thus,
+      // recursively check if it is made of all terminals.
       if (isCompound(compound.rhs))
       {
         if (allIntOrDoubles(compound.rhs.asInstanceOf[Compound]))
@@ -286,9 +356,6 @@ class MathCode {
         }
       }
       
-      // If the lhs or rhs was not a compound, then 
-      
-      
       // If they're not both all terminals, return false.
       if (!lhsAllTerminals || !rhsAllTerminals)
       {
@@ -296,6 +363,7 @@ class MathCode {
       }
       else
       {
+        // Both lhs and rhs are all terminals.
         return true;
       }
       
@@ -334,6 +402,7 @@ class MathCode {
     }
   }
   
+  
   /**
    * Returns true iff the given Value is of type Compound.
    */
@@ -348,4 +417,21 @@ class MathCode {
       return false;
     }
   }
+  
+  
+  /**
+   * Returns true iff the given Value is of type Unbound.
+   */
+  def isUnbound(value: Value): Boolean =
+  {
+    if (value.isInstanceOf[Unbound])
+    {
+      return true;
+    }
+    else
+    {
+      return false;
+    }
+  }
 }
+
