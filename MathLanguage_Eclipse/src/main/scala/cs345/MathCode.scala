@@ -1,7 +1,7 @@
 import scala.language.implicitConversions
 
 class MathCode {
-  
+
   //value can be integer (e.g., 3), double (e.g., 3.0), 
   //unbound variable (e.g., x), or expression with variable (e.g., x+1) 
   sealed trait Value {
@@ -16,74 +16,35 @@ class MathCode {
   //* TYPES IN OUR LANGUAGE AND THEIR OPERATORS:
   //***************************************************************************
   
-  //integers
-  case class IntValue(val x:Int) extends Value {
-    def + (rhs: Value):Value = rhs match{
-      case IntValue(y) => IntValue(x + y)
-      case DoubleValue(y) => DoubleValue(x + y)
-      case Unbound(sym) => Compound("+", this, sym)
-      case Compound(op,lhs,rhs) => Compound("+", this, Compound(op,lhs,rhs)) //TODO: algebraic simplification
+  // "numbers" - Rational, bigint, bigdecimal, whatever. But an actual, known number.
+  // Namely, a known number that isn't irrational
+  case class NumberValue(num:Int, den:Int) extends Value {
+    def + (rhs: Value):Value = rhs match {
+      case NumberValue(num2,den2) => simplify(NumberValue(num*den2 + num2*den,den*den2))
+      case Unbound(sym) => simplify_compound(Compound("+", this, sym))
+      case c:Compound => simplify_compound(Compound("+", this, c))
     }
-    def - (rhs: Value):Value = rhs match{
-      case IntValue(y) => IntValue(x - y)
-      case DoubleValue(y) => DoubleValue(x - y)
-      case Unbound(sym) => Compound("-", this, sym)
-      case Compound(op,lhs,rhs) => Compound("-", this, Compound(op,lhs,rhs)) //TODO: algebraic simplification
+    def - (rhs: Value):Value = simplify(NumberValue(-num, den) + rhs)
+    def * (rhs: Value):Value = rhs match {
+      case NumberValue(num2,den2) => simplify(NumberValue(num2*num, den2*den))
+      case otherwise => simplify_compound(Compound("*", this, rhs))
     }
-    def * (rhs: Value):Value = rhs match{
-      case IntValue(y) => IntValue(x * y)
-      case DoubleValue(y) => DoubleValue(x * y)
-      case Unbound(sym) => Compound("*", this, sym)
-      case Compound(op,lhs,rhs) => Compound("*", this, Compound(op,lhs,rhs)) //TODO: algebraic simplification
-    }
-    def / (rhs: Value):Value = rhs match{
-      case IntValue(y) => DoubleValue(1.0*x / y) //double because integer division is DIV, not / in math 
-      case DoubleValue(y) => DoubleValue(x / y)
-      case Unbound(sym) => Compound("/", this, sym)
-      case Compound(op,lhs,rhs) => Compound("/", this, Compound(op,lhs,rhs)) //TODO: algebraic simplification
+    def / (rhs: Value):Value = rhs match {
+      case NumberValue(num2,den2) => simplify(NumberValue(num*den2, num2*den))
+      case otherwise => simplify_compound(Compound("/", this, rhs))
     }
   }
-  implicit def Int2Value(x:Int) = IntValue(x)
+  implicit def Int2Value(x:Int) = NumberValue(x,1)
+  implicit def Double2Value(x:Double) = NumberValue(1,1)
 
-  
-  //reals
-  case class DoubleValue(x:Double) extends Value {
-    def + (rhs: Value):Value = rhs match{
-      case IntValue(y) => DoubleValue(x + y)
-      case DoubleValue(y) => DoubleValue(x + y)
-      case Unbound(sym) => Compound("+", this, sym)
-      case Compound(op,lhs,rhs) => Compound("+", this, Compound(op,lhs,rhs)) //TODO: algebraic simplification
-    }
-    def - (rhs: Value):Value = rhs match{
-      case IntValue(y) => DoubleValue(x - y)
-      case DoubleValue(y) => DoubleValue(x - y)
-      case Unbound(sym) => Compound("-", this, sym)
-      case Compound(op,lhs,rhs) => Compound("-", this, Compound(op,lhs,rhs)) //TODO: algebraic simplification
-    }
-    def * (rhs: Value):Value = rhs match{
-      case IntValue(y) => DoubleValue(x * y)
-      case DoubleValue(y) => DoubleValue(x * y)
-      case Unbound(sym) => Compound("*", this, sym)
-      case Compound(op,lhs,rhs) => Compound("*", this, Compound(op,lhs,rhs)) //TODO: algebraic simplification
-    }
-    def / (rhs: Value):Value = rhs match{
-      case IntValue(y) => DoubleValue(x / y)
-      case DoubleValue(y) => DoubleValue(x / y)
-      case Unbound(sym) => Compound("/", this, sym)
-      case Compound(op,lhs,rhs) => Compound("/", this, Compound(op,lhs,rhs)) //TODO: algebraic simplification
-    }
-  }
-  implicit def Double2Value(x:Double) = DoubleValue(x)
- 
-  
   //unbound variables
   case class Unbound(sym:Symbol) extends Value {
      //TODO: might want to simplify unbounds here algebraically, by looking at what rhs is
     //eg: a  + 2-a should simplify to 2...
-    def + (rhs: Value): Value = Compound("+",this, rhs)
-    def - (rhs: Value): Value = Compound("-",this, rhs)
-    def * (rhs: Value): Value = Compound("*",this, rhs)
-    def / (rhs: Value): Value = Compound("/",this, rhs)
+    def + (rhs: Value): Value = simplify(Compound("+",this, rhs))
+    def - (rhs: Value): Value = simplify(Compound("-",this, rhs))
+    def * (rhs: Value): Value = simplify(Compound("*",this, rhs))
+    def / (rhs: Value): Value = simplify(Compound("/",this, rhs))
   }
 
    
@@ -91,12 +52,12 @@ class MathCode {
   case class Compound(op: String, lhs: Value, rhs: Value) extends Value {
     //TODO: simplify unbounds here algebraically in all cases of op
     //eg: a+2 + 2 should simplify to a+4...
-    def + (rhs: Value): Value = Compound("+", this, rhs) 
-    def - (rhs: Value): Value = Compound("-", this, rhs) 
-    def * (rhs: Value): Value = Compound("*", this, rhs) 
-    def / (rhs: Value): Value = Compound("/", this, rhs)
+    def + (rhs: Value): Value = simplify(Compound("+", this, rhs))
+    def - (rhs: Value): Value = simplify(Compound("-", this, rhs))
+    def * (rhs: Value): Value = simplify(Compound("*", this, rhs))
+    def / (rhs: Value): Value = simplify(Compound("/", this, rhs))
   }
-  
+
   
   
   //***************************************************************************
@@ -113,11 +74,11 @@ class MathCode {
   
   val operators : String = "+-*/" //add more if needed later
   val precedence = Array(4,4,3,3) //let's all stick to https://en.wikipedia.org/wiki/Order_of_operations
+    // Wikipedia: The source of mathematical truth. :-)
   
   //PRINTLN syntax: PRINTLN(whatever)
   def PRINTLN(value: Value): Unit = value match {
-    case IntValue(intNum) => println(intNum)
-    case DoubleValue(realNum) => println(realNum)
+    case NumberValue(n,d) => println(n/d)
     case Unbound(sym) => println(sym) 
     case Compound(op,lhs,rhs) => {
       PRINT(simplify(value))
@@ -127,8 +88,7 @@ class MathCode {
   
   // PRINTLN_USE_BINDINGS syntax: PRINTLN(whatever)
   def PRINTLN_USE_BINDINGS(value: Value): Unit = value match {
-    case IntValue(intNum) => println(intNum)
-    case DoubleValue(realNum) => println(realNum)
+    case NumberValue(n,d) => println(n/d)
     case Unbound(sym) => println(sym) 
     case Compound(op,lhs,rhs) => {
       PRINT(getCompoundWithBindings(value.asInstanceOf[Compound]))
@@ -139,8 +99,7 @@ class MathCode {
   
   //PRINT syntax: PRINT(whatever)
   def PRINT(value: Value): Unit = value match {
-    case IntValue(intNum) => print(intNum)
-    case DoubleValue(realNum) => print(realNum)
+    case NumberValue(n,d) => print(n+"/"+d)
     case Unbound(sym) => print(sym) 
     case Compound(op,lhs,rhs) => {
       var parlhs = false 
@@ -196,18 +155,54 @@ class MathCode {
   //* HELPER METHODS.
   //***************************************************************************
   
-  
-  def simplify(value:Value):Value = {
-    value match {
-      case IntValue(i) => new IntValue(i)
-      case DoubleValue(d) => new DoubleValue(d)
-      case Unbound(s) => new Unbound(s)
-      case Compound(op,lhs,rhs) => {
-        value //jk, need to do a lot here :)
-      }
+  def simplify_compound(v:Value):Value = simplify(v)
+
+  def simplify(v:Value):Value = v match {
+    case NumberValue(n,d) => {
+      val g = gcd(n,d)
+      val l = lcm(n,d)
+      //println(s"gcd($n,$d) = $g")
+      //println(s"lcm($n,$d) = $l")
+      NumberValue(n / g, d / g)
     }
+    case c:Compound => c.op match {
+      case "+" => {
+        // See whether lhs can be distributed across rhs (or vice-versa)
+        c.lhs match {
+          case lhs_nv:NumberValue => c.rhs match {
+            // TODO: What if both lhs2 and rhs2 are NumberValues?
+            case Compound("+",lhs2:NumberValue,rhs2) => Compound("+", lhs2 + lhs_nv, rhs2)
+            case Compound("+",lhs2,rhs2:NumberValue) => Compound("+", lhs2, rhs2 + lhs_nv)
+            case rhs_nv:NumberValue => lhs_nv + rhs_nv
+            case otherwise => c
+          }
+          case otherwise => c
+        }
+      }
+      case "*" => {
+        // See whether lhs and rhs are both NVs
+        // Also, if one is an addition/subtraction then we can/should distribute
+        c.lhs match {
+          case lhs_nv:NumberValue => c.rhs match {
+            case rhs_nv:NumberValue => lhs_nv * rhs_nv
+            case otherwise => c
+          }
+          case otherwise => c
+        }
+      }
+      case "/" => {
+        c.lhs match {
+          case lhs_nv:NumberValue => c.rhs match {
+            case rhs_nv:NumberValue => lhs_nv / rhs_nv
+            case otherwise => c
+          }
+          case otherwise => c
+        }
+      }
+      case otherwise => c
+    }
+    case otherwise => v
   }
-  
   
   
   
@@ -224,10 +219,10 @@ class MathCode {
   {
     //variableLookup
     
-    var compound1 = Compound("+", IntValue(1), IntValue(3))
-    var compound2 = Compound("-", compound1, IntValue(45))
+    var compound1 = Compound("+", NumberValue(1,1), NumberValue(3,1))
+    var compound2 = Compound("-", compound1, NumberValue(45,1))
     var compound3 = Compound("*", compound1, compound2)
-    if (allIntOrDoubles(compound3))
+    if (allNumberValues(compound3))
     {
       PRINTLN(compound3)
       PRINTSTRING("SUCCESS")
@@ -245,7 +240,7 @@ class MathCode {
    * variables are replaced by their bindings, if such a binding
    * exists.
    */
-  def getCompoundWithBindings(compound: Compound): Compound =
+  def getCompoundWithBindings(compound: Compound): Value =
   {
     // The final new lhs and rhs for this compound. These are
     // built recursively.
@@ -259,7 +254,7 @@ class MathCode {
       newLhs = getCompoundWithBindings(compound.lhs.asInstanceOf[Compound]);
     }
     // Else if lhs is a double of int, don't change it.
-    else if (isDoubleValue(compound.lhs) || isIntValue(compound.lhs))
+    else if (isNumberValue(compound.lhs)) //isDoubleValue(compound.lhs) || isIntValue(compound.lhs))
     {
       newLhs = compound.lhs;
     }
@@ -276,7 +271,8 @@ class MathCode {
       newRhs = getCompoundWithBindings(compound.rhs.asInstanceOf[Compound]);
     }
     // Else if rhs is a double of int, don't change it.
-    else if (isDoubleValue(compound.rhs) || isIntValue(compound.rhs))
+    //else if (isDoubleValue(compound.rhs) || isIntValue(compound.rhs))
+    else if (isNumberValue(compound.rhs))
     {
       newRhs = compound.rhs;
     }
@@ -292,146 +288,80 @@ class MathCode {
     //print("NEW RHS: ");
     //println(newRhs);
     
-    return Compound(op, newLhs, newRhs);
+    return simplify_compound(Compound(op, newLhs, newRhs));
+  }
+
+  /**
+    * Returns the LCM of a and b
+    */
+  def lcm(a:Int, b:Int):Int = a*b / gcd(a,b);
+
+  /**
+    * Returns the greatest common denominator of a and b
+    */
+  def gcd(a:Int, b:Int):Int = {
+    if (a < 0) { return gcd(-a,b) }
+    if (b < 0) { return gcd(a,-b) }
+    if (a<b) { return gcd(b,a) } else {
+      var t1 = a;
+      var t2 = b;
+      while (t1 != t2) {
+        if (t1 > t2) {
+          t1 = t1 - t2;
+        } else {
+          t2 = t2 - t1;
+        }
+      }
+      return t1;
+      /*val q = a / b;
+      val r = a - q*b;
+      println(s"gcd($a,$b) => $q,$r")
+      if (r == 0) {
+        return -1;
+      }
+      val g = gcd(b, r);
+      if (g == -1) {
+        return r;
+      }
+      return g;*/
+    }
   }
   
   /**
    * Returns true iff the given compound is made purely of
-   * IntValues or DoubleValues
+   * IntValues or DoubleValues (i.e. can be simplified to a number without a variable binding)
    */
-  def allIntOrDoubles(compound: Compound): Boolean =
-  {
-    // Base case: Both LHS and RHS are doubles or reals.
-    var lhsTerminal: Boolean = isIntValue(compound.lhs) || isDoubleValue(compound.lhs);
-    var rhsTerminal: Boolean = isIntValue(compound.rhs) || isDoubleValue(compound.rhs);
-    
-    if (lhsTerminal && rhsTerminal)
-    {
-      return true;
-    }
-    
-    // One of the sides is not a double or a real.
-    else
-    {
-      // Assume both lhs and rhs are not all terminals.
-      var lhsAllTerminals: Boolean = false;
-      var rhsAllTerminals: Boolean = false;
-      
-      // If we already know lhs or rhs is all terminals.
-      if (lhsTerminal)
-      {
-        lhsAllTerminals = true;
-      }
-      
-      if (rhsTerminal)
-      {
-        rhsAllTerminals = true;
-      }
-      
-      // If lhs is a compound, then it is not a terminal. Thus,
-      // recursively check if it is made of all terminals.
-      if (isCompound(compound.lhs))
-      {
-        if (allIntOrDoubles(compound.lhs.asInstanceOf[Compound]))
-        {
-          lhsAllTerminals = true
-        }
-        else
-        {
-          lhsAllTerminals = false;
-        }
-      }
-      
-      // If rhs is a compound, then it is not a terminal. Thus,
-      // recursively check if it is made of all terminals.
-      if (isCompound(compound.rhs))
-      {
-        if (allIntOrDoubles(compound.rhs.asInstanceOf[Compound]))
-        {
-          rhsAllTerminals = true
-        }
-        else
-        {
-          rhsAllTerminals = false;
-        }
-      }
-      
-      // If they're not both all terminals, return false.
-      if (!lhsAllTerminals || !rhsAllTerminals)
-      {
-        return false;
-      }
-      else
-      {
-        // Both lhs and rhs are all terminals.
-        return true;
-      }
-      
-    }
+  def allNumberValues(compound: Value): Boolean = compound match {
+    case NumberValue(_,_) => true
+    case Unbound(_) => false
+    case Compound(op,v1:Value,v2:Value) => allNumberValues(v1) && allNumberValues(v2)
   }
-  
+
   
   /**
-   * Returns true iff the given Value is of type IntValue.
+   *  Returns true iff the given Value is of type NumberValue
    */
-  def isIntValue(value: Value): Boolean =
-  {
-    if (value.isInstanceOf[IntValue])
-    {
-      return true;
-    }
-    else
-    {
-      return false;
-    }
-  }
-  
-  
-  /**
-   * Returns true iff the given Value is of type DoubleValue.
-   */
-  def isDoubleValue(value: Value): Boolean =
-  {
-    if (value.isInstanceOf[DoubleValue])
-    {
-      return true;
-    }
-    else
-    {
-      return false;
-    }
+  def isNumberValue(value: Value): Boolean = value match {
+    case NumberValue(n,d) => true
+    case otherwise => false
   }
   
   
   /**
    * Returns true iff the given Value is of type Compound.
    */
-  def isCompound(value: Value): Boolean =
-  {
-    if (value.isInstanceOf[Compound])
-    {
-      return true;
-    }
-    else
-    {
-      return false;
-    }
+  def isCompound(value: Value): Boolean = value match {
+    case c:Compound => true
+    case otherwise => false
   }
   
   
   /**
    * Returns true iff the given Value is of type Unbound.
    */
-  def isUnbound(value: Value): Boolean =
-  {
-    if (value.isInstanceOf[Unbound])
-    {
-      return true;
-    }
-    else
-    {
-      return false;
-    }
+  def isUnbound(value: Value): Boolean = value match {
+    case u:Unbound => true
+    case otherwise => false
   }
 }
 
