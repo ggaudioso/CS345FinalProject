@@ -1,7 +1,7 @@
 import scala.language.implicitConversions
 
 class MathCode {
-  
+
   //value can be integer (e.g., 3), double (e.g., 3.0), 
   //unbound variable (e.g., x), or expression with variable (e.g., x+1) 
   sealed trait Value {
@@ -21,32 +21,18 @@ class MathCode {
   case class NumberValue(num:Int, den:Int) extends Value {
     def + (rhs: Value):Value = rhs match {
       case NumberValue(num2,den2) => NumberValue(num*den2 + num2*den,den*den2)
-      case Unbound(sym) => Compound("+", this, sym)
-      case c:Compound => {
-        simplify_compound(Compound("+", this, c))
-        // If op is "+" or "-", we can distribute
-        /*op match {
-          case "+" => {
-            // Try both lhs and rhs
-            lhs match {
-              case lhs_nv:NumberValue => Compound("+", this + lhs_nv, rhs)
-              case otherwise => rhs match {
-                case rhs_nv:NumberValue => Compound("+", lhs, this + rhs_nv)
-                case otherwise => Compound("+", this, Compound(op, lhs, rhs))
-              }
-            }
-          }
-          // If we don't recognize the operation, there's nothing we can do
-          case otherwise => Compound("+", this, Compound(op, lhs, rhs))
-        }*/
-      }
+      case Unbound(sym) => simplify_compound(Compound("+", this, sym))
+      case c:Compound => simplify_compound(Compound("+", this, c))
     }
-    def - (rhs: Value):Value = NumberValue(1,1)
+    def - (rhs: Value):Value = NumberValue(-num, den) + rhs
     def * (rhs: Value):Value = rhs match {
       case NumberValue(num2,den2) => NumberValue(num2*num, den2*den)
       case otherwise => simplify_compound(Compound("*", this, rhs))
     }
-    def / (rhs: Value):Value = NumberValue(2,1)
+    def / (rhs: Value):Value = rhs match {
+      case NumberValue(num2,den2) => NumberValue(num*den2, num2*den)
+      case otherwise => simplify_compound(Compound("/", this, rhs))
+    }
   }
   implicit def Int2Value(x:Int) = NumberValue(x,1)
   implicit def Double2Value(x:Double) = NumberValue(1,1)
@@ -70,9 +56,6 @@ class MathCode {
     def - (rhs: Value): Value = Compound("-", this, rhs) 
     def * (rhs: Value): Value = Compound("*", this, rhs) 
     def / (rhs: Value): Value = Compound("/", this, rhs)
-    /*def lhs:Value = lhs
-    def rhs:Value = rhs
-    def op = op*/
   }
   
   
@@ -190,6 +173,7 @@ class MathCode {
       }
       case "*" => {
         // See whether lhs and rhs are both NVs
+        // Also, if one is an addition/subtraction then we can/should distribute
         c.lhs match {
           case lhs_nv:NumberValue => c.rhs match {
             case rhs_nv:NumberValue => lhs_nv * rhs_nv
@@ -198,7 +182,7 @@ class MathCode {
           case otherwise => c
         }
       }
-      case otherwise => c//Compound(c.op,c.lhs,c.rhs)
+      case otherwise => c
     }
     case otherwise => v
   }
@@ -237,7 +221,7 @@ class MathCode {
     var compound1 = Compound("+", NumberValue(1,1), NumberValue(3,1))
     var compound2 = Compound("-", compound1, NumberValue(45,1))
     var compound3 = Compound("*", compound1, compound2)
-    if (allIntOrDoubles(compound3))
+    if (allNumberValues(compound3))
     {
       PRINTLN(compound3)
       PRINTSTRING("SUCCESS")
@@ -308,110 +292,18 @@ class MathCode {
   
   /**
    * Returns true iff the given compound is made purely of
-   * IntValues or DoubleValues
+   * IntValues or DoubleValues (i.e. can be simplified to a number without a variable binding)
    */
-  def allIntOrDoubles(compound: Compound): Boolean =
-  {
-    // Base case: Both LHS and RHS are doubles or reals.
-    var lhsTerminal: Boolean = isNumberValue(compound.lhs)//isIntValue(compound.lhs) || isDoubleValue(compound.lhs);
-    var rhsTerminal: Boolean = isNumberValue(compound.rhs)//isIntValue(compound.rhs) || isDoubleValue(compound.rhs);
-    
-    if (lhsTerminal && rhsTerminal)
-    {
-      return true;
-    }
-    
-    // One of the sides is not a double or a real.
-    else
-    {
-      // Assume both lhs and rhs are not all terminals.
-      var lhsAllTerminals: Boolean = false;
-      var rhsAllTerminals: Boolean = false;
-      
-      // If we already know lhs or rhs is all terminals.
-      if (lhsTerminal)
-      {
-        lhsAllTerminals = true;
-      }
-      
-      if (rhsTerminal)
-      {
-        rhsAllTerminals = true;
-      }
-      
-      // If lhs is a compound, then it is not a terminal. Thus,
-      // recursively check if it is made of all terminals.
-      if (isCompound(compound.lhs))
-      {
-        if (allIntOrDoubles(compound.lhs.asInstanceOf[Compound]))
-        {
-          lhsAllTerminals = true
-        }
-        else
-        {
-          lhsAllTerminals = false;
-        }
-      }
-      
-      // If rhs is a compound, then it is not a terminal. Thus,
-      // recursively check if it is made of all terminals.
-      if (isCompound(compound.rhs))
-      {
-        if (allIntOrDoubles(compound.rhs.asInstanceOf[Compound]))
-        {
-          rhsAllTerminals = true
-        }
-        else
-        {
-          rhsAllTerminals = false;
-        }
-      }
-      
-      // If they're not both all terminals, return false.
-      if (!lhsAllTerminals || !rhsAllTerminals)
-      {
-        return false;
-      }
-      else
-      {
-        // Both lhs and rhs are all terminals.
-        return true;
-      }
-      
-    }
+  def allNumberValues(compound: Value): Boolean = compound match {
+    case NumberValue(_,_) => true
+    case Unbound(_) => false
+    case Compound(op,v1:Value,v2:Value) => allNumberValues(v1) && allNumberValues(v2)
   }
-  
-  
-  /**
-   * Returns true iff the given Value is of type IntValue.
-   */
-  /*def isIntValue(value: Value): Boolean =
-  {
-    if (value.isInstanceOf[IntValue])
-    {
-      return true;
-    }
-    else
-    {
-      return false;
-    }
-   }*/
-  
+
   
   /**
-   * Returns true iff the given Value is of type DoubleValue.
+   *  Returns true iff the given Value is of type NumberValue
    */
-  /*def isDoubleValue(value: Value): Boolean =
-  {
-    if (value.isInstanceOf[DoubleValue])
-    {
-      return true;
-    }
-    else
-    {
-      return false;
-    }
-  }*/
   def isNumberValue(value: Value): Boolean = value match {
     case NumberValue(n,d) => true
     case otherwise => false
@@ -421,32 +313,18 @@ class MathCode {
   /**
    * Returns true iff the given Value is of type Compound.
    */
-  def isCompound(value: Value): Boolean =
-  {
-    if (value.isInstanceOf[Compound])
-    {
-      return true;
-    }
-    else
-    {
-      return false;
-    }
+  def isCompound(value: Value): Boolean = value match {
+    case c:Compound => true
+    case otherwise => false
   }
   
   
   /**
    * Returns true iff the given Value is of type Unbound.
    */
-  def isUnbound(value: Value): Boolean =
-  {
-    if (value.isInstanceOf[Unbound])
-    {
-      return true;
-    }
-    else
-    {
-      return false;
-    }
+  def isUnbound(value: Value): Boolean = value match {
+    case u:Unbound => true
+    case otherwise => false
   }
 }
 
