@@ -22,20 +22,30 @@ class MathCode {
     def + (rhs: Value):Value = rhs match {
       case NumberValue(num2,den2) => NumberValue(num*den2 + num2*den,den*den2)
       case Unbound(sym) => Compound("+", this, sym)
-      case Compound(op, lhs, rhs) => {
+      case c:Compound => {
+        simplify_compound(Compound("+", this, c))
         // If op is "+" or "-", we can distribute
-        op match {
+        /*op match {
           case "+" => {
             // Try both lhs and rhs
-            Compound("+", this, Compound(op, lhs, rhs))
+            lhs match {
+              case lhs_nv:NumberValue => Compound("+", this + lhs_nv, rhs)
+              case otherwise => rhs match {
+                case rhs_nv:NumberValue => Compound("+", lhs, this + rhs_nv)
+                case otherwise => Compound("+", this, Compound(op, lhs, rhs))
+              }
+            }
           }
           // If we don't recognize the operation, there's nothing we can do
           case otherwise => Compound("+", this, Compound(op, lhs, rhs))
-        }
+        }*/
       }
     }
-    def - (rhs: Value):Value = NumberValue(0,1)
-    def * (rhs: Value):Value = NumberValue(1,1)
+    def - (rhs: Value):Value = NumberValue(1,1)
+    def * (rhs: Value):Value = rhs match {
+      case NumberValue(num2,den2) => NumberValue(num2*num, den2*den)
+      case otherwise => simplify_compound(Compound("*", this, rhs))
+    }
     def / (rhs: Value):Value = NumberValue(2,1)
   }
   implicit def Int2Value(x:Int) = NumberValue(x,1)
@@ -56,10 +66,13 @@ class MathCode {
   case class Compound(op: String, lhs: Value, rhs: Value) extends Value {
     //TODO: simplify unbounds here algebraically in all cases of op
     //eg: a+2 + 2 should simplify to a+4...
-    def + (rhs: Value): Value = Compound("+", this, rhs) 
+    def + (rhs: Value): Value = Compound("+", this, rhs)
     def - (rhs: Value): Value = Compound("-", this, rhs) 
     def * (rhs: Value): Value = Compound("*", this, rhs) 
     def / (rhs: Value): Value = Compound("/", this, rhs)
+    /*def lhs:Value = lhs
+    def rhs:Value = rhs
+    def op = op*/
   }
   
   
@@ -82,7 +95,7 @@ class MathCode {
   
   //PRINTLN syntax: PRINTLN(whatever)
   def PRINTLN(value: Value): Unit = value match {
-    case NumberValue(n,d) => println(n+"/"+d) // TODO: WRONG WRONG WRONG
+    case NumberValue(n,d) => println(n/d)
     case Unbound(sym) => println(sym) 
     case Compound(op,lhs,rhs) => {
       PRINT(simplify(value))
@@ -92,7 +105,7 @@ class MathCode {
   
   // PRINTLN_USE_BINDINGS syntax: PRINTLN(whatever)
   def PRINTLN_USE_BINDINGS(value: Value): Unit = value match {
-    case NumberValue(n,d) => println(n+"/"+d) // TODO: ALSO TOTALLY WRONG
+    case NumberValue(n,d) => println(n/d)
     case Unbound(sym) => println(sym) 
     case Compound(op,lhs,rhs) => {
       PRINT(getCompoundWithBindings(value.asInstanceOf[Compound]))
@@ -103,7 +116,7 @@ class MathCode {
   
   //PRINT syntax: PRINT(whatever)
   def PRINT(value: Value): Unit = value match {
-    case NumberValue(n,d) => print(n+"/"+d) // TODO: This is TOTALLY WRONG
+    case NumberValue(n,d) => print(n/d)
     case Unbound(sym) => print(sym) 
     case Compound(op,lhs,rhs) => {
       var parlhs = false 
@@ -159,7 +172,40 @@ class MathCode {
   //* HELPER METHODS.
   //***************************************************************************
   
-  
+
+  def simplify_compound(v:Value):Value = v match {
+    case c:Compound => c.op match {
+      case "+" => {
+        // See whether lhs can be distributed across rhs (or vice-versa)
+        c.lhs match {
+          case lhs_nv:NumberValue => c.rhs match {
+            // TODO: What if both lhs2 and rhs2 are NumberValues?
+            case Compound("+",lhs2:NumberValue,rhs2) => Compound("+", lhs2 + lhs_nv, rhs2)
+            case Compound("+",lhs2,rhs2:NumberValue) => Compound("+", lhs2, rhs2 + lhs_nv)
+            case rhs_nv:NumberValue => lhs_nv + rhs_nv
+            case otherwise => c//Compound("+", c.lhs, c.rhs)
+          }
+          case otherwise => c//Compound("+", c.lhs, c.rhs)
+        }
+      }
+      case "*" => {
+        // See whether lhs and rhs are both NVs
+        c.lhs match {
+          case lhs_nv:NumberValue => c.rhs match {
+            case rhs_nv:NumberValue => lhs_nv * rhs_nv
+            case otherwise => c
+          }
+          case otherwise => c
+        }
+      }
+      case otherwise => c//Compound(c.op,c.lhs,c.rhs)
+    }
+    case otherwise => v
+  }
+
+
+
+
   def simplify(value:Value):Value = {
     value match {
       //case IntValue(i) => new IntValue(i)
@@ -209,7 +255,7 @@ class MathCode {
    * variables are replaced by their bindings, if such a binding
    * exists.
    */
-  def getCompoundWithBindings(compound: Compound): Compound =
+  def getCompoundWithBindings(compound: Compound): Value =
   {
     // The final new lhs and rhs for this compound. These are
     // built recursively.
@@ -257,7 +303,7 @@ class MathCode {
     //print("NEW RHS: ");
     //println(newRhs);
     
-    return Compound(op, newLhs, newRhs);
+    return simplify_compound(Compound(op, newLhs, newRhs));
   }
   
   /**
