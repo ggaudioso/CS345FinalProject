@@ -16,66 +16,31 @@ class MathCode {
   //* TYPES IN OUR LANGUAGE AND THEIR OPERATORS:
   //***************************************************************************
   
-  //integers
-  case class IntValue(val x:Int) extends Value {
-    def + (rhs: Value):Value = rhs match{
-      case IntValue(y) => IntValue(x + y)
-      case DoubleValue(y) => DoubleValue(x + y)
+  // "numbers" - Rational, bigint, bigdecimal, whatever. But an actual, known number.
+  // Namely, a known number that isn't irrational
+  case class NumberValue(num:Int, den:Int) extends Value {
+    def + (rhs: Value):Value = rhs match {
+      case NumberValue(num2,den2) => NumberValue(num*den2 + num2*den,den*den2)
       case Unbound(sym) => Compound("+", this, sym)
-      case Compound(op,lhs,rhs) => Compound("+", this, Compound(op,lhs,rhs)) //TODO: algebraic simplification
+      case Compound(op, lhs, rhs) => {
+        // If op is "+" or "-", we can distribute
+        op match {
+          case "+" => {
+            // Try both lhs and rhs
+            Compound("+", this, Compound(op, lhs, rhs))
+          }
+          // If we don't recognize the operation, there's nothing we can do
+          case otherwise => Compound("+", this, Compound(op, lhs, rhs))
+        }
+      }
     }
-    def - (rhs: Value):Value = rhs match{
-      case IntValue(y) => IntValue(x - y)
-      case DoubleValue(y) => DoubleValue(x - y)
-      case Unbound(sym) => Compound("-", this, sym)
-      case Compound(op,lhs,rhs) => Compound("-", this, Compound(op,lhs,rhs)) //TODO: algebraic simplification
-    }
-    def * (rhs: Value):Value = rhs match{
-      case IntValue(y) => IntValue(x * y)
-      case DoubleValue(y) => DoubleValue(x * y)
-      case Unbound(sym) => Compound("*", this, sym)
-      case Compound(op,lhs,rhs) => Compound("*", this, Compound(op,lhs,rhs)) //TODO: algebraic simplification
-    }
-    def / (rhs: Value):Value = rhs match{
-      case IntValue(y) => DoubleValue(1.0*x / y) //double because integer division is DIV, not / in math 
-      case DoubleValue(y) => DoubleValue(x / y)
-      case Unbound(sym) => Compound("/", this, sym)
-      case Compound(op,lhs,rhs) => Compound("/", this, Compound(op,lhs,rhs)) //TODO: algebraic simplification
-    }
+    def - (rhs: Value):Value = NumberValue(0,1)
+    def * (rhs: Value):Value = NumberValue(1,1)
+    def / (rhs: Value):Value = NumberValue(2,1)
   }
-  implicit def Int2Value(x:Int) = IntValue(x)
+  implicit def Int2Value(x:Int) = NumberValue(x,1)
+  implicit def Double2Value(x:Double) = NumberValue(1,1)
 
-  
-  //reals
-  case class DoubleValue(x:Double) extends Value {
-    def + (rhs: Value):Value = rhs match{
-      case IntValue(y) => DoubleValue(x + y)
-      case DoubleValue(y) => DoubleValue(x + y)
-      case Unbound(sym) => Compound("+", this, sym)
-      case Compound(op,lhs,rhs) => Compound("+", this, Compound(op,lhs,rhs)) //TODO: algebraic simplification
-    }
-    def - (rhs: Value):Value = rhs match{
-      case IntValue(y) => DoubleValue(x - y)
-      case DoubleValue(y) => DoubleValue(x - y)
-      case Unbound(sym) => Compound("-", this, sym)
-      case Compound(op,lhs,rhs) => Compound("-", this, Compound(op,lhs,rhs)) //TODO: algebraic simplification
-    }
-    def * (rhs: Value):Value = rhs match{
-      case IntValue(y) => DoubleValue(x * y)
-      case DoubleValue(y) => DoubleValue(x * y)
-      case Unbound(sym) => Compound("*", this, sym)
-      case Compound(op,lhs,rhs) => Compound("*", this, Compound(op,lhs,rhs)) //TODO: algebraic simplification
-    }
-    def / (rhs: Value):Value = rhs match{
-      case IntValue(y) => DoubleValue(x / y)
-      case DoubleValue(y) => DoubleValue(x / y)
-      case Unbound(sym) => Compound("/", this, sym)
-      case Compound(op,lhs,rhs) => Compound("/", this, Compound(op,lhs,rhs)) //TODO: algebraic simplification
-    }
-  }
-  implicit def Double2Value(x:Double) = DoubleValue(x)
- 
-  
   //unbound variables
   case class Unbound(sym:Symbol) extends Value {
      //TODO: might want to simplify unbounds here algebraically, by looking at what rhs is
@@ -113,11 +78,11 @@ class MathCode {
   
   val operators : String = "+-*/" //add more if needed later
   val precedence = Array(4,4,3,3) //let's all stick to https://en.wikipedia.org/wiki/Order_of_operations
+    // Wikipedia: The source of mathematical truth. :-)
   
   //PRINTLN syntax: PRINTLN(whatever)
   def PRINTLN(value: Value): Unit = value match {
-    case IntValue(intNum) => println(intNum)
-    case DoubleValue(realNum) => println(realNum)
+    case NumberValue(n,d) => println(n+"/"+d) // TODO: WRONG WRONG WRONG
     case Unbound(sym) => println(sym) 
     case Compound(op,lhs,rhs) => {
       PRINT(simplify(value))
@@ -127,8 +92,7 @@ class MathCode {
   
   // PRINTLN_USE_BINDINGS syntax: PRINTLN(whatever)
   def PRINTLN_USE_BINDINGS(value: Value): Unit = value match {
-    case IntValue(intNum) => println(intNum)
-    case DoubleValue(realNum) => println(realNum)
+    case NumberValue(n,d) => println(n+"/"+d) // TODO: ALSO TOTALLY WRONG
     case Unbound(sym) => println(sym) 
     case Compound(op,lhs,rhs) => {
       PRINT(getCompoundWithBindings(value.asInstanceOf[Compound]))
@@ -139,8 +103,7 @@ class MathCode {
   
   //PRINT syntax: PRINT(whatever)
   def PRINT(value: Value): Unit = value match {
-    case IntValue(intNum) => print(intNum)
-    case DoubleValue(realNum) => print(realNum)
+    case NumberValue(n,d) => print(n+"/"+d) // TODO: This is TOTALLY WRONG
     case Unbound(sym) => print(sym) 
     case Compound(op,lhs,rhs) => {
       var parlhs = false 
@@ -199,8 +162,9 @@ class MathCode {
   
   def simplify(value:Value):Value = {
     value match {
-      case IntValue(i) => new IntValue(i)
-      case DoubleValue(d) => new DoubleValue(d)
+      //case IntValue(i) => new IntValue(i)
+      //case DoubleValue(d) => new DoubleValue(d)
+      case NumberValue(n,d) => new NumberValue(n,d)
       case Unbound(s) => new Unbound(s)
       case Compound(op,lhs,rhs) => {
         value //jk, need to do a lot here :)
@@ -224,8 +188,8 @@ class MathCode {
   {
     //variableLookup
     
-    var compound1 = Compound("+", IntValue(1), IntValue(3))
-    var compound2 = Compound("-", compound1, IntValue(45))
+    var compound1 = Compound("+", NumberValue(1,1), NumberValue(3,1))
+    var compound2 = Compound("-", compound1, NumberValue(45,1))
     var compound3 = Compound("*", compound1, compound2)
     if (allIntOrDoubles(compound3))
     {
@@ -259,7 +223,7 @@ class MathCode {
       newLhs = getCompoundWithBindings(compound.lhs.asInstanceOf[Compound]);
     }
     // Else if lhs is a double of int, don't change it.
-    else if (isDoubleValue(compound.lhs) || isIntValue(compound.lhs))
+    else if (isNumberValue(compound.lhs)) //isDoubleValue(compound.lhs) || isIntValue(compound.lhs))
     {
       newLhs = compound.lhs;
     }
@@ -276,7 +240,8 @@ class MathCode {
       newRhs = getCompoundWithBindings(compound.rhs.asInstanceOf[Compound]);
     }
     // Else if rhs is a double of int, don't change it.
-    else if (isDoubleValue(compound.rhs) || isIntValue(compound.rhs))
+    //else if (isDoubleValue(compound.rhs) || isIntValue(compound.rhs))
+    else if (isNumberValue(compound.rhs))
     {
       newRhs = compound.rhs;
     }
@@ -302,8 +267,8 @@ class MathCode {
   def allIntOrDoubles(compound: Compound): Boolean =
   {
     // Base case: Both LHS and RHS are doubles or reals.
-    var lhsTerminal: Boolean = isIntValue(compound.lhs) || isDoubleValue(compound.lhs);
-    var rhsTerminal: Boolean = isIntValue(compound.rhs) || isDoubleValue(compound.rhs);
+    var lhsTerminal: Boolean = isNumberValue(compound.lhs)//isIntValue(compound.lhs) || isDoubleValue(compound.lhs);
+    var rhsTerminal: Boolean = isNumberValue(compound.rhs)//isIntValue(compound.rhs) || isDoubleValue(compound.rhs);
     
     if (lhsTerminal && rhsTerminal)
     {
@@ -374,7 +339,7 @@ class MathCode {
   /**
    * Returns true iff the given Value is of type IntValue.
    */
-  def isIntValue(value: Value): Boolean =
+  /*def isIntValue(value: Value): Boolean =
   {
     if (value.isInstanceOf[IntValue])
     {
@@ -384,13 +349,13 @@ class MathCode {
     {
       return false;
     }
-  }
+   }*/
   
   
   /**
    * Returns true iff the given Value is of type DoubleValue.
    */
-  def isDoubleValue(value: Value): Boolean =
+  /*def isDoubleValue(value: Value): Boolean =
   {
     if (value.isInstanceOf[DoubleValue])
     {
@@ -400,6 +365,10 @@ class MathCode {
     {
       return false;
     }
+  }*/
+  def isNumberValue(value: Value): Boolean = value match {
+    case NumberValue(n,d) => true
+    case otherwise => false
   }
   
   
