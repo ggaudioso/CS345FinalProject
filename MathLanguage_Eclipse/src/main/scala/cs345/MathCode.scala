@@ -120,7 +120,7 @@ class MathCode {
     case DoubleValue(realNum) => println(realNum)
     case Unbound(sym) => println(sym) 
     case Compound(op,lhs,rhs) => {
-      PRINT(value)
+      PRINT(simplify(value))
       println
     }
   }
@@ -163,6 +163,40 @@ class MathCode {
   
   
   
+ //*****************************************************************
+ //* STUFF TO DEAL WITH VARIABLES:
+ //*****************************************************************  
+  
+  //bindings of variables stored here:
+  var scope:Map[Symbol,Value] = Map()
+  
+  //look up a variable in our bindings
+  implicit def variableLookup(sym:Symbol):Value = scope.get(sym) match {
+    case Some(value) => value
+    case None => Unbound(sym)
+  }
+  
+    
+  
+
+  
+  //***************************************************************************
+  //* HELPER METHODS.
+  //***************************************************************************
+  
+  
+  def simplify(value:Value):Value = {
+    value match {
+      case IntValue(i) => new IntValue(i)
+      case DoubleValue(d) => new DoubleValue(d)
+      case Unbound(s) => new Unbound(s)
+      case Compound(op,lhs,rhs) => {
+        value //jk, need to do a lot here :)
+      }
+    }
+  }
+  
+  
   
   
   //*******************************
@@ -191,26 +225,7 @@ class MathCode {
     }
     
   }
-  
-  
-  
-  
    
- //STUFF TO DEAL WITH VARIABLES:
-   
-  //bindings of variables stored here:
-  var scope:Map[Symbol,Value] = Map()
-  
-  //look up a variable in our bindings
-  implicit def variableLookup(sym:Symbol):Value = scope.get(sym) match {
-    case Some(value) => value
-    case None => Unbound(sym)
-  }
-  
-  
-  //***************************************************************************
-  //* HELPER METHODS.
-  //***************************************************************************
   
   /**
    * Returns true iff the given compound is made purely of

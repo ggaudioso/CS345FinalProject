@@ -8,8 +8,11 @@ object MathDemo extends MathCode{
     //PRINT('newvar)
     LET('x) BE 'newvar + 'four
     PRINTLN('x)
-    PRINTLN('x + 2) //eg of what needs to be simplified
-    PRINTLN('x * 2) //eg of need of parenthesis in print sometimes
+    LET('x) BE 'x + 2
+    PRINTLN('x) //eg of what needs to be simplified
+    PRINTLN('x * 2)
+    
+
     
     PRINTSTRING("\nPrinting a string\n")
     
