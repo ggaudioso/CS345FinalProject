@@ -87,13 +87,13 @@ class MathCode {
   //* INSTRUCTIONS IN OUR LANGUAGE:
   //***************************************************************************
   
-  //Assignment syntax: LET (symbol) BE value
-  case class LET(sym:Symbol) {
-    def BE (value:Value) = {
-      scope += (sym -> value)
+  case class Variable(variableName:Symbol) {
+    def :=(value:Value) = {
+      scope += (variableName -> value)
     }
   }
   
+  implicit def symbolToVariable(variableName:Symbol):Variable = Variable(variableName)
   
   val operators : String = "+-*/^" //add more if needed later
   val precedence = Array(4,4,3,3,2) //let's all stick to https://en.wikipedia.org/wiki/Order_of_operations
