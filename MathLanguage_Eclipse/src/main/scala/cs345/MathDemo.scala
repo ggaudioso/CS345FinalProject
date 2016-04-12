@@ -7,7 +7,7 @@ object MathDemo extends MathCode{
     PRINTLN_APPROXIMATE('pi+3)
     PRINTLN_EVALUATE('pi+3)
     
-    LET ('x) BE 'pi * 2
+    'x := 'pi * 2
     PRINTLN_APPROXIMATE('x*'r)
     println
     PRINTLN_EVALUATE('e+'pi)
