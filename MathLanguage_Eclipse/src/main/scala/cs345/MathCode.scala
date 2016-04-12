@@ -3,8 +3,10 @@ import scala.math.{ pow, min }
 
 class MathCode {
 
-  //value can be integer (e.g., 3), double (e.g., 3.0), 
-  //unbound variable (e.g., x), or expression with variable (e.g., x+1) 
+  //***************************************************************************
+  //* ALL Value SUBTYPES MUST IMPLEMENT THESE OPERATIONS:
+  //***************************************************************************
+  
   sealed trait Value {
     def + (rhs: Value):Value
     def - (rhs: Value):Value
@@ -322,12 +324,12 @@ class MathCode {
     if (isCompound(compound.lhs)) {
       newLhs = getCompoundWithBindings(compound.lhs.asInstanceOf[Compound], approximate)
     }
-    // Else if lhs is a double of int, don't change it.
-    else if (isNumberValue(compound.lhs)) { //isDoubleValue(compound.lhs) || isIntValue(compound.lhs))
-      newLhs = compound.lhs
+    // Else if lhs is a number value, don't change it.
+    else if (isNumberValue(compound.lhs)) {
+      newLhs = compound.lhs;
     }
-    // Else it is a variable, and we can try to replace it with a binding,
-    // if one exists..
+    // Else it is a variable, and we can try to replace it with a binding. If
+    // it has no binding, it will not change.
     else {
       newLhs = variableLookup(compound.lhs.asInstanceOf[Unbound].sym)
       if (approximate && isknown(compound.lhs.asInstanceOf[Unbound].sym))
@@ -338,13 +340,12 @@ class MathCode {
     if (isCompound(compound.rhs)) {
       newRhs = getCompoundWithBindings(compound.rhs.asInstanceOf[Compound],approximate)
     }
-    // Else if rhs is a double of int, don't change it.
-    //else if (isDoubleValue(compound.rhs) || isIntValue(compound.rhs))
+    // Else if rhs is a number value, don't change it.
     else if (isNumberValue(compound.rhs)) {
       newRhs = compound.rhs
     }
-    // Else it is a variable, and we can try to replace it with a binding,
-    // if one exists..
+    // Else it is a variable, and we can try to replace it with a binding. If
+    // it has no binding, it will not change.
     else {
       newRhs = variableLookup(compound.rhs.asInstanceOf[Unbound].sym)
       if (approximate && isknown(compound.rhs.asInstanceOf[Unbound].sym)) 
