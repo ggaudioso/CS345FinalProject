@@ -1,4 +1,5 @@
 import scala.language.implicitConversions
+import scala.math.pow
 
 class MathCode {
 
@@ -9,6 +10,7 @@ class MathCode {
     def - (rhs: Value):Value
     def * (rhs: Value):Value
     def / (rhs: Value):Value
+    def ^ (rhs: Value):Value
   }
   
  
@@ -33,30 +35,47 @@ class MathCode {
       case NumberValue(num2,den2) => simplify(NumberValue(num*den2, num2*den))
       case otherwise => simplify_compound(Compound("/", this, rhs))
     }
+    def ^ (rhs: Value):Value = rhs match {
+      case NumberValue(num2,den2) => {
+        if (den2==1) 
+          NumberValue(pow(num,num2).toInt, pow(den,den2).toInt)
+        else 
+          simplify(Compound("^",NumberValue(pow(num,num2).toInt, pow(den,den2).toInt), NumberValue(1,den2)))
+      }
+      case otherwise => simplify(Compound("^", this, rhs))
+    }
   }
   implicit def Int2Value(x:Int) = NumberValue(x,1)
-  implicit def Double2Value(x:Double) = NumberValue(1,1)
+  implicit def Double2Value(x:Double) = {
+    val digits = pow(10,(x.toString).length - (x.toString).indexOf('.') -1)
+    val num = (x*digits).toInt
+    val den = digits.toInt
+    simplify(NumberValue(num,den))
+  }
 
+  
   //unbound variables
   case class Unbound(sym:Symbol) extends Value {
-     //TODO: might want to simplify unbounds here algebraically, by looking at what rhs is
-    //eg: a  + 2-a should simplify to 2...
     def + (rhs: Value): Value = simplify(Compound("+",this, rhs))
     def - (rhs: Value): Value = simplify(Compound("-",this, rhs))
     def * (rhs: Value): Value = simplify(Compound("*",this, rhs))
     def / (rhs: Value): Value = simplify(Compound("/",this, rhs))
+    def ^ (rhs: Value):Value = simplify(Compound("^", this, rhs))
   }
 
    
   //expressions with unbound variables 
   case class Compound(op: String, lhs: Value, rhs: Value) extends Value {
-    //TODO: simplify unbounds here algebraically in all cases of op
-    //eg: a+2 + 2 should simplify to a+4...
     def + (rhs: Value): Value = simplify(Compound("+", this, rhs))
     def - (rhs: Value): Value = simplify(Compound("-", this, rhs))
     def * (rhs: Value): Value = simplify(Compound("*", this, rhs))
     def / (rhs: Value): Value = simplify(Compound("/", this, rhs))
+    def ^ (rhs: Value):Value = simplify(Compound("^", this, rhs))
   }
+  
+  
+  //unary minus
+  def neg(rhs:Value):Value = Compound("-",0,rhs)
 
   
   
@@ -72,13 +91,13 @@ class MathCode {
   }
   
   
-  val operators : String = "+-*/" //add more if needed later
-  val precedence = Array(4,4,3,3) //let's all stick to https://en.wikipedia.org/wiki/Order_of_operations
+  val operators : String = "+-*/^" //add more if needed later
+  val precedence = Array(4,4,3,3,2) //let's all stick to https://en.wikipedia.org/wiki/Order_of_operations
     // Wikipedia: The source of mathematical truth. :-)
   
   //PRINTLN syntax: PRINTLN(whatever)
   def PRINTLN(value: Value): Unit = value match {
-    case NumberValue(n,d) => println(n/d)
+    case NumberValue(n,d) => if (d==1) println(n) else println(n+"/"+d)
     case Unbound(sym) => println(sym) 
     case Compound(op,lhs,rhs) => {
       PRINT(simplify(value))
@@ -99,9 +118,20 @@ class MathCode {
   
   //PRINT syntax: PRINT(whatever)
   def PRINT(value: Value): Unit = value match {
-    case NumberValue(n,d) => print(n+"/"+d)
-    case Unbound(sym) => print(sym) 
+    case NumberValue(n,d) => if (d==1) print(n) else print(n+"/"+d)
+    case Unbound(sym) => print((sym.toString).substring(1)) //get rid of '
     case Compound(op,lhs,rhs) => {
+      if (op.equals("-") && isNumberValue(lhs) && getNum(lhs) == 0) {
+        print(op)
+        if (isCompound(rhs)) {
+          print("(")
+          PRINT(rhs)
+          print(")")
+        }
+        else 
+          PRINT(rhs)
+        return
+      }
       var parlhs = false 
       var parrhs = false
       lhs match {
@@ -316,10 +346,8 @@ class MathCode {
     }
   }
   
-  /**
-   * Returns true iff the given compound is made purely of
-   * IntValues or DoubleValues (i.e. can be simplified to a number without a variable binding)
-   */
+  // Returns true iff the given compound is made purely of
+  // IntValues or DoubleValues (i.e. can be simplified to a number without a variable binding)
   def allNumberValues(compound: Value): Boolean = compound match {
     case NumberValue(_,_) => true
     case Unbound(_) => false
@@ -327,30 +355,40 @@ class MathCode {
   }
 
   
-  /**
-   *  Returns true iff the given Value is of type NumberValue
-   */
+  //Returns true iff the given Value is of type NumberValue
   def isNumberValue(value: Value): Boolean = value match {
     case NumberValue(n,d) => true
     case otherwise => false
   }
   
+  def getNum(value: Value): Int = value match {
+    case NumberValue(n,d) => n
+    case otherwise => 0 //your risk to call this on st that is not numbervalue
+  }
   
-  /**
-   * Returns true iff the given Value is of type Compound.
-   */
+  def getDen(value: Value): Int = value match {
+    case NumberValue(n,d) => d
+    case otherwise => 0 //your risk to call this on st that is not numbervalue
+  }
+  
+  
+  //Returns true iff the given Value is of type Compound.
   def isCompound(value: Value): Boolean = value match {
     case c:Compound => true
     case otherwise => false
   }
   
   
-  /**
-   * Returns true iff the given Value is of type Unbound.
-   */
+  //Returns true iff the given Value is of type Unbound.
   def isUnbound(value: Value): Boolean = value match {
     case u:Unbound => true
     case otherwise => false
   }
+  
+  def getSym(value: Value): Symbol = value match {
+    case Unbound(s) => s
+    case otherwise => 'youwrong //your risk to call this on st that is not unbound
+  }
+  
 }
 

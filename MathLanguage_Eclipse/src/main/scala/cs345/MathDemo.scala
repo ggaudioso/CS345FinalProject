@@ -1,9 +1,15 @@
 
 object MathDemo extends MathCode{
-  def main(args: Array[String]):Unit = {
+  def main(args: Array[String]):Unit = {  
 
-    LET('three) BE 3.0
+    LET('three) BE 3.124
     LET('four) BE 2 + 2
+    
+    PRINTLN('three)
+    
+    PRINTLN(neg('x + 4))
+    
+    
     //PRINT('four)
     //PRINT('newvar)
     LET('x) BE 'newvar + 'four
