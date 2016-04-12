@@ -215,33 +215,28 @@ class MathCode {
   /**
    * Arbitrary test method.
    */
-  def test()
-  {
+  def test() {
     //variableLookup
-    
     var compound1 = Compound("+", NumberValue(1,1), NumberValue(3,1))
     var compound2 = Compound("-", compound1, NumberValue(45,1))
     var compound3 = Compound("*", compound1, compound2)
-    if (allNumberValues(compound3))
-    {
+    if (allNumberValues(compound3)) {
       PRINTLN(compound3)
       PRINTSTRING("SUCCESS")
     }
-    else
-    {
+    else {
       PRINTLN(compound3)
       PRINTSTRING("FAIL")
     }
-    
   }
    
+
   /**
    * Given a Compound, return a new Compound in which all unbound
    * variables are replaced by their bindings, if such a binding
    * exists.
    */
-  def getCompoundWithBindings(compound: Compound): Value =
-  {
+  def getCompoundWithBindings(compound: Compound): Value = {
     // The final new lhs and rhs for this compound. These are
     // built recursively.
     var newLhs: Value = null;
@@ -249,37 +244,31 @@ class MathCode {
     var op: String = compound.op;
     
     // If the lhs is a compound, recursively call it.
-    if (isCompound(compound.lhs))
-    {
+    if (isCompound(compound.lhs)) {
       newLhs = getCompoundWithBindings(compound.lhs.asInstanceOf[Compound]);
     }
     // Else if lhs is a double of int, don't change it.
-    else if (isNumberValue(compound.lhs)) //isDoubleValue(compound.lhs) || isIntValue(compound.lhs))
-    {
+    else if (isNumberValue(compound.lhs)) { //isDoubleValue(compound.lhs) || isIntValue(compound.lhs))
       newLhs = compound.lhs;
     }
     // Else it is a variable, and we can try to replace it with a binding,
     // if one exists..
-    else
-    {
+    else {
       newLhs = variableLookup(compound.lhs.asInstanceOf[Unbound].sym);
     }
     
     // If the rhs is a compound, recursively call it.
-    if (isCompound(compound.rhs))
-    {
+    if (isCompound(compound.rhs)) {
       newRhs = getCompoundWithBindings(compound.rhs.asInstanceOf[Compound]);
     }
     // Else if rhs is a double of int, don't change it.
     //else if (isDoubleValue(compound.rhs) || isIntValue(compound.rhs))
-    else if (isNumberValue(compound.rhs))
-    {
+    else if (isNumberValue(compound.rhs)) {
       newRhs = compound.rhs;
     }
     // Else it is a variable, and we can try to replace it with a binding,
     // if one exists..
-    else
-    {
+    else {
       newRhs = variableLookup(compound.rhs.asInstanceOf[Unbound].sym);
     }
     
