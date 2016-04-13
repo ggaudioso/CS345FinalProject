@@ -95,12 +95,11 @@ class MathCode {
   }
   
   implicit def symbolToVariable(variableName:Symbol):Variable = Variable(variableName)
+  implicit def symbolToAppliable(symbolicName:Symbol):Appliable = Appliable(symbolicName)
   
-  //look up a variable in our bindings
-  implicit def variableLookup(sym:Symbol):Value = scope.get(sym) match {
-    case Some(value) => value
-    case None => Unbound(sym)
-  }
+  // The reason we implicitly cast symbols to Unbounds instead of Values, is so that we can defer symbol lookup until
+  // we actually need it (currently only when printing, but soon for function body execution).
+  implicit def symbolToUnbound(symbol:Symbol):Unbound = Unbound(symbol)
   
   //***************************************************************************
   //* INSTRUCTIONS IN OUR LANGUAGE:
@@ -108,9 +107,59 @@ class MathCode {
   
   case class Variable(variableName:Symbol) {
     def :=(value:Value) = {
-      scope += (variableName -> value)
+      variableMap += (variableName -> value)
     }
   }
+  
+  // Because of the way our implicits work, we can't distinguish between a function call and
+  // implied multiplication. E.g. 'y = 'b('x).
+  // Therefore, we just try to see if it's a function, if not, it must be a multiplication (which we currently don't allow).
+  case class Appliable(val applier:Symbol) {
+    case class FunctionRegistration(parameterName:Symbol) {
+      def :=(expression:Value) : Unit = {
+        ensureValueOnlyContainsUnboundWithSymbolicName(expression, parameterName)
+        functionMap += (applier -> new FunctionImplementation(parameterName, expression))
+      }
+    }
+    
+    def apply(argument:Value): Value = {
+      functionMap.get(applier) match {
+        case Some(implementation) => implementation.getValueFromArgument(argument)
+        case None => {
+          /* We could try and implement implied multiplication here */
+          throw new Exception("We do not allow implied multiplication!")
+        }
+      }
+    }
+    
+    def apply(parameterName:Symbol): FunctionRegistration = FunctionRegistration(parameterName)
+  }
+  
+  
+  case class FunctionImplementation(val parameterName:Symbol, val expression:Value) {
+    def getValueFromArgument(value:Value) : Value = {
+      // First we need to evaluate the argument
+      var argument : Value = value match {
+        case nv:NumberValue => nv
+        case Unbound(symbol) => variableLookupFromBinding(symbol, variableMap)
+        case compound:Compound => simplify(getCompoundGivenBinding(compound, false, variableMap))
+      }
+      
+      // Here's where we can handle multiple arguments
+      var bindings:Map[Symbol, Value] = Map()
+      bindings += (parameterName -> argument)
+      
+      return expression match {
+        case nv:NumberValue => nv
+        case umbound:Unbound => argument // as of now we only allow one argument, and our function registration class should handle an unknown unbound
+        case compound:Compound => getCompoundGivenBinding(compound, false, bindings)
+      }
+    }
+  }
+  
+  //***************************************************************************
+  //* PRINTING:
+  //***************************************************************************
   
   val operators : String = "+-*/^" //add more if needed later
   val precedence = Array(4,4,3,3,2) //let's all stick to https://en.wikipedia.org/wiki/Order_of_operations
@@ -171,8 +220,8 @@ class MathCode {
   def PRINTLN_EVALUATE(value: Value): Unit = value match {
     case NumberValue(n,d) => println(n+"/"+d)
     case Unbound(sym) => println(sym) 
-    case Compound(op,lhs,rhs) => {
-      PRINT(getCompoundWithBindings(value.asInstanceOf[Compound]))
+    case compund:Compound => {
+      PRINT(getCompoundGivenBinding(compund, false, variableMap))
       println
     }
   }
@@ -182,7 +231,7 @@ class MathCode {
     case NumberValue(n,d) => println(n.toDouble/d.toDouble)
     case Unbound(sym) => if (isknown(sym)) println(approx(sym)) else println(sym) 
     case compound:Compound => {
-      PRINTLN(getCompoundWithBindings(compound,true),true)
+      PRINTLN(getCompoundGivenBinding(compound, true, variableMap),true)
     }
   }
   
@@ -191,21 +240,30 @@ class MathCode {
  //*****************************************************************  
   
   //bindings of variables stored here:
-  var scope:Map[Symbol,Value] = Map()
+  var variableMap:Map[Symbol,Value] = Map()
+  var functionMap:Map[Symbol, FunctionImplementation] = Map()
   
   //known values such as pi, e .. can add more
   //if we increase precision, increase precision of these as well.. but not too much or operations with lots of these wil overflow and mess up
-  var knownscope:Map[Symbol,Double] = Map(('e,2.7182), ('pi,3.1415))
+  var knownVariables:Map[Symbol,Double] = Map(('e,2.7182), ('pi,3.1415))
   
   //checks if symbol is known
   def isknown(sym:Symbol): Boolean = {
-    knownscope.contains(sym)
+    knownVariables.contains(sym)
   }
     
   //returns approximation of known symbols
-  def approx(sym:Symbol): Double = knownscope.get(sym) match {
+  def approx(sym:Symbol): Double = knownVariables.get(sym) match {
     case Some(value) => value
     case None => 0.0 //your risk if you call on unknown symbol
+  }
+  
+  //look up a variable given the binding
+  def variableLookupFromBinding(sym:Symbol, binding:Map[Symbol, Value]):Value = {
+    binding.get(sym) match {
+      case Some(value) => value
+      case None => Unbound(sym)
+    }
   }
   
   //***************************************************************************
@@ -267,8 +325,6 @@ class MathCode {
     }
     case otherwise => value
   }
-  
-  
   
   //*****************************************************
   //* Runs the test() method when TEST is used in the DSL
@@ -351,11 +407,11 @@ class MathCode {
   
 
   /**
-   * Given a Compound, return a new Compound in which all unbound
+   * Given a Compound and a Binding, return a new Compound in which all unbound
    * variables are replaced by their bindings, if such a binding
    * exists.
    */
-  def getCompoundWithBindings(compound: Compound, approximate: Boolean = false): Value = {
+  def getCompoundGivenBinding(compound: Compound, approximate: Boolean = false, binding:Map[Symbol, Value]): Value = {
     
     // The final new lhs and rhs for this compound. These are
     // built recursively.
@@ -364,23 +420,25 @@ class MathCode {
     var op: String = compound.op
     
     newLhs = compound.lhs match {
-      case compound:Compound => getCompoundWithBindings(compound, approximate)
+      case compound:Compound => getCompoundGivenBinding(compound, approximate, binding)
       case numberValue:NumberValue => numberValue
       case Unbound(unboundSymbol) => {
         if (approximate && isknown(unboundSymbol))
           approx(unboundSymbol)
         else
-          variableLookup(unboundSymbol)
+          variableLookupFromBinding(unboundSymbol, binding)
       }
+    }
     
     newRhs = compound.rhs match {
-      case compound:Compound => getCompoundWithBindings(compound, approximate)
+      case compound:Compound => getCompoundGivenBinding(compound, approximate, binding)
       case numberValue:NumberValue => numberValue
       case Unbound(unboundSymbol) => {
         if (approximate && isknown(unboundSymbol))
           approx(unboundSymbol)
         else
-          variableLookup(unboundSymbol)
+          variableLookupFromBinding(unboundSymbol, binding)
+      }
     }
     
     return simplify(Compound(op, newLhs, newRhs), approximate);
@@ -407,6 +465,20 @@ class MathCode {
     }
   }
   
+  // For use in function bodies, to make sure there isn't anything we don't expect
+  def ensureValueOnlyContainsUnboundWithSymbolicName(value:Value, symbolicName:Symbol): Unit = {
+    value match {
+      case NumberValue(_,_) => return
+      case Unbound(sym:Symbol) => {
+        if(sym != symbolicName)
+          throw new Exception("You can't have any variables in a function body other than the parameter. Parameter is " + symbolicName.toString() + ", found " + sym.toString())
+      }
+      case Compound(_, lhs, rhs) => {
+        ensureValueOnlyContainsUnboundWithSymbolicName(lhs, symbolicName)
+        ensureValueOnlyContainsUnboundWithSymbolicName(rhs, symbolicName)
+      }
+    }
+  }
   
   //Returns true iff the given compound is made purely of NumberValues.
   def allNumberValues(compound: Value): Boolean = compound match {
@@ -449,5 +521,3 @@ class MathCode {
   }
   
 }
-
-
