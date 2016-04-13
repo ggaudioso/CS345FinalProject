@@ -55,16 +55,6 @@ class MathCode {
       case otherwise => simplify(Compound("/", this, rhs))
     }
   }
-  implicit def Int2Value(x:Int):NumberValue = NumberValue(x,1)
-  implicit def Double2Value(x:Double):Value = {
-    var decimals = (x.toString).length - (x.toString).indexOf('.') -1
-    decimals = min(decimals, 4) //higher precision might cause overflow in operations :(
-    val digits = pow(10,decimals)
-    val num = (x*digits).toInt
-    val den = digits.toInt
-    simplify(NumberValue(num,den))
-  }
-
   
   //unbound variables
   case class Unbound(sym:Symbol) extends Value {
@@ -91,7 +81,26 @@ class MathCode {
   //unary minus
   def neg(rhs:Value):Value = Compound("-",0,rhs)
 
+  //***************************************************************************
+  //* IMPLICITS:
+  //***************************************************************************
+  implicit def Int2Value(x:Int):NumberValue = NumberValue(x,1)
+  implicit def Double2Value(x:Double):Value = {
+    var decimals = (x.toString).length - (x.toString).indexOf('.') -1
+    decimals = min(decimals, 4) //higher precision might cause overflow in operations :(
+    val digits = pow(10,decimals)
+    val num = (x*digits).toInt
+    val den = digits.toInt
+    simplify(NumberValue(num,den))
+  }
   
+  implicit def symbolToVariable(variableName:Symbol):Variable = Variable(variableName)
+  
+  //look up a variable in our bindings
+  implicit def variableLookup(sym:Symbol):Value = scope.get(sym) match {
+    case Some(value) => value
+    case None => Unbound(sym)
+  }
   
   //***************************************************************************
   //* INSTRUCTIONS IN OUR LANGUAGE:
@@ -103,23 +112,14 @@ class MathCode {
     }
   }
   
-  implicit def symbolToVariable(variableName:Symbol):Variable = Variable(variableName)
-  
   val operators : String = "+-*/^" //add more if needed later
   val precedence = Array(4,4,3,3,2) //let's all stick to https://en.wikipedia.org/wiki/Order_of_operations
     // Wikipedia: The source of mathematical truth. :-)
   
   //PRINTLN syntax: PRINTLN(whatever)
-  def PRINTLN(value: Value, approximate:Boolean = false): Unit = value match {
-    case NumberValue(n,d) => {
-      if (!approximate) { if (d==1) println(n) else println(n+"/"+d) }
-      else println(n.toDouble/d.toDouble) 
-    }
-    case Unbound(sym) => println(sym) 
-    case Compound(op,lhs,rhs) => {
-      PRINT(simplify(value),approximate)
-      println
-    }
+  def PRINTLN(value: Value, approximate:Boolean = false): Unit =  {
+    PRINT(value, approximate)
+    println()
   }
   
   //PRINT syntax: PRINT(whatever)
@@ -167,8 +167,6 @@ class MathCode {
     }
   }
   
-  def PRINTLN_USE_BINDINGS(value:Value) = PRINTLN_EVALUATE(value)
-  
   // PRINTLN_EVALUATES syntax: PRINTLN(whatever).. and evaluates the whatever exactly
   def PRINTLN_EVALUATE(value: Value): Unit = value match {
     case NumberValue(n,d) => println(n+"/"+d)
@@ -183,16 +181,10 @@ class MathCode {
   def PRINTLN_APPROXIMATE(value: Value): Unit = value match {
     case NumberValue(n,d) => println(n.toDouble/d.toDouble)
     case Unbound(sym) => if (isknown(sym)) println(approx(sym)) else println(sym) 
-    case Compound(op,lhs,rhs) => {
-      PRINTLN(getCompoundWithBindings(value.asInstanceOf[Compound],true),true)
+    case compound:Compound => {
+      PRINTLN(getCompoundWithBindings(compound,true),true)
     }
   }
-  
-  
-  // PRINTSTRING syntax: PRINTSTRING(myString: String)
-  def PRINTSTRING(value : String) : Unit = println(value)
-  
-  
   
  //*****************************************************************
  //* STUFF TO DEAL WITH VARIABLES:
@@ -205,12 +197,6 @@ class MathCode {
   //if we increase precision, increase precision of these as well.. but not too much or operations with lots of these wil overflow and mess up
   var knownscope:Map[Symbol,Double] = Map(('e,2.7182), ('pi,3.1415))
   
-  //look up a variable in our bindings
-  implicit def variableLookup(sym:Symbol):Value = scope.get(sym) match {
-    case Some(value) => value
-    case None => Unbound(sym)
-  }
-  
   //checks if symbol is known
   def isknown(sym:Symbol): Boolean = {
     knownscope.contains(sym)
@@ -222,67 +208,64 @@ class MathCode {
     case None => 0.0 //your risk if you call on unknown symbol
   }
   
-  
-
-  
   //***************************************************************************
   //* HELPER METHODS.
   //***************************************************************************
   
-  def simplify(v:Value, approximate:Boolean = false):Value = v match {
+  def simplify(value:Value, approximate:Boolean = false):Value = value match {
     case NumberValue(n,d) => {
       val g = gcd(n,d)
       NumberValue(n / g, d / g)
     }
-    case c:Compound => c.op match {
+    case compound:Compound => compound.op match {
       case "+" => {
         // See whether lhs can be distributed across rhs (or vice-versa)
-        c.lhs match {
-          case lhs_nv:NumberValue => c.rhs match {
+        compound.lhs match {
+          case lhs_nv:NumberValue => compound.rhs match {
             // TODO: What if both lhs2 and rhs2 are NumberValues?
             case Compound("+",lhs2:NumberValue,rhs2) => Compound("+", lhs2 + lhs_nv, rhs2)
             case Compound("+",lhs2,rhs2:NumberValue) => Compound("+", lhs2, rhs2 + lhs_nv)
             case rhs_nv:NumberValue => lhs_nv + rhs_nv
-            case otherwise => c
+            case otherwise => compound
           }
-          case otherwise => c
+          case otherwise => compound
         }
       }
       case "*" => {
         // See whether lhs and rhs are both NVs
         // Also, if one is an addition/subtraction then we can/should distribute
-        c.lhs match {
-          case lhs_nv:NumberValue => c.rhs match {
+        compound.lhs match {
+          case lhs_nv:NumberValue => compound.rhs match {
             case rhs_nv:NumberValue => lhs_nv * rhs_nv
-            case otherwise => c
+            case otherwise => compound
           }
-          case otherwise => c
+          case otherwise => compound
         }
       }
       case "/" => {
-        c.lhs match {
-          case lhs_nv:NumberValue => c.rhs match {
+        compound.lhs match {
+          case lhs_nv:NumberValue => compound.rhs match {
             case rhs_nv:NumberValue => lhs_nv / rhs_nv
-            case otherwise => c
+            case otherwise => compound
           }
-          case otherwise => c
+          case otherwise => compound
         }
       }
       case "^" => {
         if (approximate) {
-          c.lhs match {
-          case lhs_nv:NumberValue => c.rhs match {
+          compound.lhs match {
+          case lhs_nv:NumberValue => compound.rhs match {
             case rhs_nv:NumberValue => pow(lhs_nv.num.toDouble/lhs_nv.den.toDouble, rhs_nv.num.toDouble/rhs_nv.den.toDouble)
-            case otherwise => c
+            case otherwise => compound
           }
-          case otherwise => c
+          case otherwise => compound
         }
         }
-        else c
+        else compound
       }
-      case otherwise => c
+      case otherwise => compound
     }
-    case otherwise => v
+    case otherwise => value
   }
   
   
@@ -380,39 +363,27 @@ class MathCode {
     var newRhs: Value = null
     var op: String = compound.op
     
-    // If the lhs is a compound, recursively call it.
-    if (isCompound(compound.lhs)) {
-      newLhs = getCompoundWithBindings(compound.lhs.asInstanceOf[Compound], approximate)
-    }
-    // Else if lhs is a number value, don't change it.
-    else if (isNumberValue(compound.lhs)) {
-      newLhs = compound.lhs;
-    }
-    // Else it is a variable, and we can try to replace it with a binding. If
-    // it has no binding, it will not change.
-    else {
-      newLhs = variableLookup(compound.lhs.asInstanceOf[Unbound].sym)
-      if (approximate && isknown(compound.lhs.asInstanceOf[Unbound].sym))
-        newLhs = approx(compound.lhs.asInstanceOf[Unbound].sym)
+    newLhs = compound.lhs match {
+      case compound:Compound => getCompoundWithBindings(compound, approximate)
+      case numberValue:NumberValue => numberValue
+      case Unbound(unboundSymbol) => {
+        if (approximate && isknown(unboundSymbol))
+          approx(unboundSymbol)
+        else
+          variableLookup(unboundSymbol)
+      }
+    
+    newRhs = compound.rhs match {
+      case compound:Compound => getCompoundWithBindings(compound, approximate)
+      case numberValue:NumberValue => numberValue
+      case Unbound(unboundSymbol) => {
+        if (approximate && isknown(unboundSymbol))
+          approx(unboundSymbol)
+        else
+          variableLookup(unboundSymbol)
     }
     
-    // If the rhs is a compound, recursively call it.
-    if (isCompound(compound.rhs)) {
-      newRhs = getCompoundWithBindings(compound.rhs.asInstanceOf[Compound],approximate)
-    }
-    // Else if rhs is a number value, don't change it.
-    else if (isNumberValue(compound.rhs)) {
-      newRhs = compound.rhs
-    }
-    // Else it is a variable, and we can try to replace it with a binding. If
-    // it has no binding, it will not change.
-    else {
-      newRhs = variableLookup(compound.rhs.asInstanceOf[Unbound].sym)
-      if (approximate && isknown(compound.rhs.asInstanceOf[Unbound].sym)) 
-        newRhs = approx(compound.rhs.asInstanceOf[Unbound].sym)
-    }
-    
-    return simplify(Compound(op, newLhs, newRhs),approximate);
+    return simplify(Compound(op, newLhs, newRhs), approximate);
   }
 
   // Returns the LCM of a and b
@@ -437,9 +408,7 @@ class MathCode {
   }
   
   
-  /**
-   * Returns true iff the given compound is made purely of NumberValues.
-   */
+  //Returns true iff the given compound is made purely of NumberValues.
   def allNumberValues(compound: Value): Boolean = compound match {
     case NumberValue(_,_) => true
     case Unbound(_) => false
@@ -447,9 +416,7 @@ class MathCode {
   }
 
   
-  /**
-   * Returns true iff the given Value is of type NumberValue
-   */
+  //Returns true iff the given Value is of type NumberValue
   def isNumberValue(value: Value): Boolean = value match {
     case NumberValue(n,d) => true
     case otherwise => false
@@ -468,9 +435,7 @@ class MathCode {
   }
   
   
-  /**
-   * Returns true iff the given Value is of type Compound.
-   */
+  //Returns true iff the given Value is of type Compound.
   def isCompound(value: Value): Boolean = value match {
     case c:Compound => true
     case otherwise => false
@@ -483,11 +448,6 @@ class MathCode {
     case otherwise => false
   }
   
-  //gets symbol out of unbound
-  def getSym(value: Value): Symbol = value match {
-    case Unbound(s) => s
-    case otherwise => 'youwrong //your risk to call this on st that is not unbound
-  }
-  
 }
+
 
