@@ -220,8 +220,8 @@ class MathCode {
   def PRINTLN_EVALUATE(value: Value): Unit = value match {
     case NumberValue(n,d) => println(n+"/"+d)
     case Unbound(sym) => println(sym) 
-    case compund:Compound => {
-      PRINT(getCompoundGivenBinding(compund, false, variableMap))
+    case compound:Compound => {
+      PRINT(getCompoundGivenBinding(compound, false, variableMap))
       println
     }
   }
