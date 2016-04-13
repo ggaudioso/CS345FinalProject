@@ -25,17 +25,20 @@ class MathCode {
   case class NumberValue(num:BigInt, den:BigInt) extends Value {
     def + (rhs: Value):Value = rhs match {
       case NumberValue(num2,den2) => simplify(NumberValue(num*den2 + num2*den,den*den2))
-      case Unbound(sym) => simplify_compound(Compound("+", this, sym))
-      case c:Compound => simplify_compound(Compound("+", this, c))
+      case Unbound(sym) => simplify(Compound("+", this, sym))
+      case c:Compound => simplify(Compound("+", this, c))
     }
-    def - (rhs: Value):Value = simplify(NumberValue(-num, den) + rhs)
+    def - (rhs: Value):Value = rhs match {
+      case NumberValue(num2,den2) => simplify(this + NumberValue(-num2, den2))
+      case otherwise => simplify(Compound("-", this, rhs))
+    }
     def * (rhs: Value):Value = rhs match {
       case NumberValue(num2,den2) => simplify(NumberValue(num2*num, den2*den))
-      case otherwise => simplify_compound(Compound("*", this, rhs))
+      case otherwise => simplify(Compound("*", this, rhs))
     }
     def / (rhs: Value):Value = rhs match {
       case NumberValue(num2,den2) => simplify(NumberValue(num*den2, num2*den))
-      case otherwise => simplify_compound(Compound("/", this, rhs))
+      case otherwise => simplify(Compound("/", this, rhs))
     }
     def ^ (rhs: Value):Value = rhs match {
       case NumberValue(num2,den2) => {
@@ -223,8 +226,6 @@ class MathCode {
   //* HELPER METHODS.
   //***************************************************************************
   
-  def simplify_compound(v:Value, approximate:Boolean = false):Value = simplify(v,approximate)
-
   def simplify(v:Value, approximate:Boolean = false):Value = v match {
     case NumberValue(n,d) => {
       val g = gcd(n,d)
@@ -353,7 +354,7 @@ class MathCode {
         newRhs = approx(compound.rhs.asInstanceOf[Unbound].sym)
     }
     
-    return simplify_compound(Compound(op, newLhs, newRhs),approximate);
+    return simplify(Compound(op, newLhs, newRhs),approximate);
   }
 
   // Returns the LCM of a and b
