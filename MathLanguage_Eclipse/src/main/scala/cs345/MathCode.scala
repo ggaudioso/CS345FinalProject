@@ -282,10 +282,9 @@ class MathCode {
   
   
   
-  //*******************************
-  //* Runs the test() method when
-  //* used in the DSL
-  //*******************************
+  //*****************************************************
+  //* Runs the test() method when TEST is used in the DSL
+  //*****************************************************
   def TEST() : Unit = test()
   
   /**
@@ -293,19 +292,75 @@ class MathCode {
    */
   def test() {
     //variableLookup
-    var compound1 = Compound("+", NumberValue(1,1), NumberValue(3,1))
-    var compound2 = Compound("-", compound1, NumberValue(45,1))
+    var compound1 = Compound("+", Unbound('x), NumberValue(3,1))
+    var compound2 = Compound("*", NumberValue(2,1), NumberValue(2,1))
     var compound3 = Compound("*", compound1, compound2)
-    if (allNumberValues(compound3)) {
-      PRINTLN(compound3)
-      PRINTSTRING("SUCCESS")
-    }
-    else {
-      PRINTLN(compound3)
-      PRINTSTRING("FAIL")
-    }
+
+    
+    var newCompound = simplifyCompoundNumberValuePairs(compound3);
+    PRINTLN(compound3);
+    PRINTLN(newCompound);
   }
+  
    
+  /**
+   * Given a Compound, simplify all sub-Compounds which are two NumberValues.
+   */
+  def simplifyCompoundNumberValuePairs(compound : Compound): Value = {
+    
+    //println("GIVEN COMPOUND: " + compound);
+    
+    // Base case: both lhs and rhs are number values.
+    if (isNumberValue(compound.lhs) && isNumberValue(compound.rhs)) {
+      
+      println("DOING: " + compound.op + ", " + compound.lhs + ", " + compound.rhs);
+      
+      return compound.op match {
+        case "+" => compound.lhs.+(compound.rhs);
+        case "-" => compound.lhs.-(compound.rhs);
+        case "*" => compound.lhs.*(compound.rhs);
+        case "/" => compound.lhs./(compound.rhs);
+      }
+    }
+    
+    // We will try to simplify the lhs and the rhs as much as we can.
+    var newLhs = compound.lhs;
+    var newRhs = compound.rhs;
+    
+    println("OP:  " + compound.op);
+    println("LHS: " + compound.lhs);
+    println("RHS: " + compound.rhs);
+    
+    // If the lhs is a compound, try to simplify it.
+    if (isCompound(compound.lhs)) {
+      newLhs = simplifyCompoundNumberValuePairs(compound.lhs.asInstanceOf[Compound]);
+    }
+    
+    // If the rhs is a compound, try to simplify it.
+    if (isCompound(compound.rhs)) {
+      newRhs = simplifyCompoundNumberValuePairs(compound.rhs.asInstanceOf[Compound]);
+    }
+    
+    //println("NEW LHS: " + newLhs);
+    //println("NEW RHS: " + newRhs);
+    
+    // Once simplified, if both are number values, then we can return a number value.
+    if (isNumberValue(newLhs) && isNumberValue(newRhs)) {
+      
+      println("DOING: " + compound.op + ", " + newLhs + ", " + newRhs);
+      
+      return compound.op match {
+        case "+" => newLhs.+(newRhs);
+        case "-" => newLhs.-(newRhs);
+        case "*" => newLhs.*(newRhs);
+        case "/" => newLhs./(newRhs);
+      }
+    }
+    
+    // They are not both number values, so return a compound.
+    return Compound(compound.op, newLhs, newRhs);
+  }
+  
 
   /**
    * Given a Compound, return a new Compound in which all unbound
