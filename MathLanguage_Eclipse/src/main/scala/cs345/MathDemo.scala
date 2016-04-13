@@ -16,6 +16,9 @@ object MathDemo extends MathCode{
     PRINTLN_EVALUATE('e^'pi)
     PRINTLN_APPROXIMATE('e^'pi)
     
+    println
+    PRINTLN_EVALUATE(1 / 3)
+    PRINTLN_EVALUATE(1 OVER 3)
     
 //
 //    LET('three) BE 3

@@ -22,7 +22,7 @@ class MathCode {
   
   // "numbers" - Rational, bigint, bigdecimal, whatever. But an actual, known number.
   // Namely, a known number that isn't irrational
-  case class NumberValue(num:Int, den:Int) extends Value {
+  case class NumberValue(num:BigInt, den:BigInt) extends Value {
     def + (rhs: Value):Value = rhs match {
       case NumberValue(num2,den2) => simplify(NumberValue(num*den2 + num2*den,den*den2))
       case Unbound(sym) => simplify_compound(Compound("+", this, sym))
@@ -40,9 +40,9 @@ class MathCode {
     def ^ (rhs: Value):Value = rhs match {
       case NumberValue(num2,den2) => {
         if (den2==1) 
-          NumberValue(pow(num,num2).toInt, pow(den,den2).toInt)
-        else 
-          simplify(Compound("^",NumberValue(pow(num,num2).toInt, pow(den,den2).toInt), NumberValue(1,den2)))
+          NumberValue(num.pow(num2.toInt), den.pow(den2.toInt))
+        else
+          simplify(Compound("^",NumberValue(num.pow(num2.toInt), den.pow(num2.toInt)), NumberValue(1,den2)))
       }
       case otherwise => simplify(Compound("^", this, rhs))
     }
@@ -51,8 +51,8 @@ class MathCode {
       case otherwise => simplify(Compound("/", this, rhs))
     }
   }
-  implicit def Int2Value(x:Int) = NumberValue(x,1)
-  implicit def Double2Value(x:Double) = {
+  implicit def Int2Value(x:Int):NumberValue = NumberValue(x,1)
+  implicit def Double2Value(x:Double):Value = {
     var decimals = (x.toString).length - (x.toString).indexOf('.') -1
     decimals = min(decimals, 4) //higher precision might cause overflow in operations :(
     val digits = pow(10,decimals)
@@ -228,9 +228,6 @@ class MathCode {
   def simplify(v:Value, approximate:Boolean = false):Value = v match {
     case NumberValue(n,d) => {
       val g = gcd(n,d)
-      val l = lcm(n,d)
-      //println(s"gcd($n,$d) = $g")
-      //println(s"lcm($n,$d) = $l")
       NumberValue(n / g, d / g)
     }
     case c:Compound => c.op match {
@@ -360,10 +357,10 @@ class MathCode {
   }
 
   // Returns the LCM of a and b
-  def lcm(a:Int, b:Int):Int = a*b / gcd(a,b);
+  //def lcm(a:Int, b:Int):Int = a*b / gcd(a,b);
 
   //Returns the greatest common denominator of a and b
-  def gcd(a:Int, b:Int):Int = {
+  def gcd(a:BigInt, b:BigInt):BigInt = {
     if (a < 0) { return gcd(-a,b) }
     if (b < 0) { return gcd(a,-b) }
     if (a<b) { return gcd(b,a) } else {
@@ -377,17 +374,6 @@ class MathCode {
         }
       }
       return t1
-      /*val q = a / b;
-      val r = a - q*b;
-      println(s"gcd($a,$b) => $q,$r")
-      if (r == 0) {
-        return -1;
-      }
-      val g = gcd(b, r);
-      if (g == -1) {
-        return r;
-      }
-      return g;*/
     }
   }
   
@@ -407,13 +393,13 @@ class MathCode {
   }
   
   //gets numerator out of fraction
-  def getNum(value: Value): Int = value match {
+  def getNum(value: Value): BigInt = value match {
     case NumberValue(n,d) => n
     case otherwise => 0 //your risk to call this on st that is not numbervalue
   }
   
   //gets numerator out of fraction
-  def getDen(value: Value): Int = value match {
+  def getDen(value: Value): BigInt = value match {
     case NumberValue(n,d) => d
     case otherwise => 0 //your risk to call this on st that is not numbervalue
   }
