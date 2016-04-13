@@ -98,7 +98,7 @@ class MathCode {
   implicit def symbolToAppliable(symbolicName:Symbol):Appliable = Appliable(symbolicName)
   
   // The reason we implicitly cast symbols to Unbounds instead of Values, is so that we can defer symbol lookup until
-  // we actually need it (currently only when printing, but soon for function body execution).
+  // we actually need it.
   implicit def symbolToUnbound(symbol:Symbol):Unbound = Unbound(symbol)
   
   //***************************************************************************
