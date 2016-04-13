@@ -387,8 +387,10 @@ class MathCode {
     }
   }
   
-  // Returns true iff the given compound is made purely of
-  // IntValues or DoubleValues (i.e. can be simplified to a number without a variable binding)
+  
+  /**
+   * Returns true iff the given compound is made purely of NumberValues.
+   */
   def allNumberValues(compound: Value): Boolean = compound match {
     case NumberValue(_,_) => true
     case Unbound(_) => false
@@ -396,7 +398,9 @@ class MathCode {
   }
 
   
-  //Returns true iff the given Value is of type NumberValue
+  /**
+   * Returns true iff the given Value is of type NumberValue
+   */
   def isNumberValue(value: Value): Boolean = value match {
     case NumberValue(n,d) => true
     case otherwise => false
@@ -415,7 +419,9 @@ class MathCode {
   }
   
   
-  //Returns true iff the given Value is of type Compound.
+  /**
+   * Returns true iff the given Value is of type Compound.
+   */
   def isCompound(value: Value): Boolean = value match {
     case c:Compound => true
     case otherwise => false
