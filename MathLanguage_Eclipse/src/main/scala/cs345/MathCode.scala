@@ -13,6 +13,7 @@ class MathCode {
     def * (rhs: Value):Value
     def / (rhs: Value):Value
     def ^ (rhs: Value):Value
+    def OVER (rhs: Value):Value
   }
   
  
@@ -71,7 +72,8 @@ class MathCode {
     def - (rhs: Value): Value = simplify(Compound("-",this, rhs))
     def * (rhs: Value): Value = simplify(Compound("*",this, rhs))
     def / (rhs: Value): Value = simplify(Compound("/",this, rhs))
-    def ^ (rhs: Value):Value = simplify(Compound("^", this, rhs))
+    def ^ (rhs: Value): Value = simplify(Compound("^", this, rhs))
+    def OVER (rhs: Value): Value = simplify(Compound("/", this, rhs))
   }
 
    
@@ -81,7 +83,8 @@ class MathCode {
     def - (rhs: Value): Value = simplify(Compound("-", this, rhs))
     def * (rhs: Value): Value = simplify(Compound("*", this, rhs))
     def / (rhs: Value): Value = simplify(Compound("/", this, rhs))
-    def ^ (rhs: Value):Value = simplify(Compound("^", this, rhs))
+    def ^ (rhs: Value): Value = simplify(Compound("^", this, rhs))
+    def OVER (rhs: Value): Value = simplify(Compound("/", this, rhs))
   }
   
   
