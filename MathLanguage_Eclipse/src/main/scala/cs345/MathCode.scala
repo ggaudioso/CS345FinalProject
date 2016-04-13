@@ -46,6 +46,10 @@ class MathCode {
       }
       case otherwise => simplify(Compound("^", this, rhs))
     }
+    def OVER (rhs: Value):Value = rhs match {
+      case NumberValue(num2,den2) => NumberValue(num*den2, den*num2)
+      case otherwise => simplify(Compound("/", this, rhs))
+    }
   }
   implicit def Int2Value(x:Int) = NumberValue(x,1)
   implicit def Double2Value(x:Double) = {
