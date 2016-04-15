@@ -25,7 +25,7 @@ class MathCode {
   
   // "numbers" - Rational, bigint, bigdecimal, whatever. But an actual, known number.
   // Namely, a known number that isn't irrational
-  case class NumberValue(num:BigInt, den:BigInt) extends Value {
+  case class NumberValue(val num:BigInt, val den:BigInt) extends Value {
     def + (rhs: Value):Value = rhs match {
       case NumberValue(num2,den2) => simplify(NumberValue(num*den2 + num2*den,den*den2))
       case Unbound(sym) => simplify(Compound("+", this, sym))
@@ -59,7 +59,7 @@ class MathCode {
   }
   
   //unbound variables
-  case class Unbound(sym:Symbol) extends Value {
+  case class Unbound(val sym:Symbol) extends Value {
     def + (rhs: Value): Value = simplify(Compound("+",this, rhs))
     def - (rhs: Value): Value = simplify(Compound("-",this, rhs))
     def * (rhs: Value): Value = simplify(Compound("*",this, rhs))
@@ -70,7 +70,7 @@ class MathCode {
 
    
   //expressions with unbound variables 
-  case class Compound(op: String, lhs: Value, rhs: Value) extends Value {
+  case class Compound(val op: String, val lhs: Value, val rhs: Value) extends Value {
     def + (rhs: Value): Value = simplify(Compound("+", this, rhs))
     def - (rhs: Value): Value = simplify(Compound("-", this, rhs))
     def * (rhs: Value): Value = simplify(Compound("*", this, rhs))
@@ -106,7 +106,7 @@ class MathCode {
   
   case class Variable(variableName:Symbol) {
     def :=(value:Value) : Unit= {
-      if(variableMap contains variableName)
+      if((variableMap contains variableName) || (functionMap contains variableName))
         throw new Exception("Redefinition is now allowed!")
       variableMap += (variableName -> value)
     }
@@ -127,7 +127,7 @@ class MathCode {
   case class FunctionRegistration(functionName:Symbol) {
     case class Inner(parameterName:Symbol) {
       def :=(expression:Value) {
-        if(functionMap contains functionName)
+        if((variableMap contains functionName) || (functionMap contains functionName))
           throw new Exception("Redefinition is now allowed!")
         ensureValueOnlyContainsUnboundWithSymbolicName(expression, parameterName)
         functionMap += (functionName -> new FunctionImplementation(parameterName, expression))
@@ -161,59 +161,17 @@ class MathCode {
   //* PRINTING:
   //***************************************************************************
   
-  val operators : String = "+-*/^" //add more if needed later
-  val precedence = Array(4,4,3,3,2) //let's all stick to https://en.wikipedia.org/wiki/Order_of_operations
-    // Wikipedia: The source of mathematical truth. :-)
-  
   //PRINTLN syntax: PRINTLN(whatever)
-  def PRINTLN(value: Value, approximate:Boolean = false): Unit =  {
-    PRINT(value, approximate)
+  def PRINTLN(value: Value): Unit =  {
+    PRINT(value)
     println()
   }
   
   //PRINT syntax: PRINT(whatever)
-  def PRINT(value: Value, approximate:Boolean = false): Unit = value match {
-    case NumberValue(n,d) => {
-      if (!approximate) { if (d==1) print(n) else print(n+"/"+d) }
-      else print(n.toDouble/d.toDouble) 
-    }
-    case Unbound(sym) => print((sym.toString).substring(1)) //get rid of '
-    case Compound(op,lhs,rhs) => {
-      if (op.equals("-") && isNumberValue(lhs) && getNum(lhs) == 0) {
-        print(op)
-        if (isCompound(rhs)) {
-          print("(")
-          PRINT(rhs,approximate)
-          print(")")
-        }
-        else 
-          PRINT(rhs,approximate)
-        return
-      }
-      var parlhs = false 
-      var parrhs = false
-      lhs match {
-        case Compound(lop,llhs,lrhs) => {
-          if (precedence(operators.indexOf(lop)) > precedence(operators.indexOf(op))) 
-            parlhs = true
-        }
-        case _ => parlhs = false
-      }
-      rhs match {
-        case Compound(rop,rlhs,rrhs) => {
-          if (precedence(operators.indexOf(rop)) > precedence(operators.indexOf(op)))
-            parrhs = true
-        }
-        case _ => parrhs = false
-      }
-      if (parlhs) print("(")
-      PRINT(lhs,approximate)
-      if (parlhs) print(")")
-      print(" " + op + " ")
-      if (parrhs) print("(")
-      PRINT(rhs,approximate)
-      if (parrhs) print(")")
-    }
+  def PRINT(value: Value): Unit = value match {
+    case numberValue:NumberValue => printNumberValue(numberValue)
+    case unbound:Unbound => printUnbound(unbound)
+    case compound:Compound => printCompoundUsingFunction(compound, PRINT)
   }
   
   // PRINTLN_EVALUATES syntax: PRINTLN(whatever).. and evaluates the whatever exactly
@@ -231,8 +189,44 @@ class MathCode {
     case NumberValue(n,d) => println(n.toDouble/d.toDouble)
     case Unbound(sym) => if (isknown(sym)) println(approx(sym)) else println(sym) 
     case compound:Compound => {
-      PRINTLN(getCompoundGivenBinding(compound, true, variableMap),true)
+      PRINTLN(getCompoundGivenBinding(compound, true, variableMap))
     }
+  }
+  
+  def printWithUnevaluatedUnbounds(value:Value): Unit = value match {
+    case numberValue:NumberValue => printNumberValue(numberValue)
+    case unbound:Unbound => print(unbound.sym)
+    case compound:Compound => printCompoundUsingFunction(compound, printWithUnevaluatedUnbounds(_))
+  }
+  
+  def printNumberValue(numberValue:NumberValue) : Unit = {
+    if (numberValue.den == 1)
+      print(numberValue.num)
+    else
+      print(numberValue.num + "/" + numberValue.den)
+  }
+  
+  def printUnbound(unbound:Unbound) : Unit = {
+    if (variableMap contains unbound.sym)
+      PRINT(variableMap(unbound.sym))
+    else if (functionMap contains unbound.sym)
+      printFunction(unbound.sym, functionMap(unbound.sym))
+    else
+      print(unbound.sym)
+  }
+  
+  def printCompoundUsingFunction(compound:Compound, function:(Value) => Unit) : Unit = {
+    print("(")
+    function(compound.lhs)
+    print(" " + compound.op + " ")
+    function(compound.rhs)
+    print(")")
+  }
+  
+  def printFunction(functionName:Symbol, functionImplementation:FunctionImplementation) : Unit = {
+    print("Function " + functionName.toString() + " takes in " + functionImplementation.parameterName)
+    print(" and is defined as ")
+    printWithUnevaluatedUnbounds(functionImplementation.expression)
   }
   
  //*****************************************************************
@@ -325,27 +319,6 @@ class MathCode {
     }
     case otherwise => value
   }
-  
-  //*****************************************************
-  //* Runs the test() method when TEST is used in the DSL
-  //*****************************************************
-  def TEST() : Unit = test()
-  
-  /**
-   * Arbitrary test method.
-   */
-  def test() {
-    //variableLookup
-    var compound1 = Compound("+", Unbound('x), NumberValue(3,1))
-    var compound2 = Compound("*", NumberValue(2,1), NumberValue(2,1))
-    var compound3 = Compound("*", compound1, compound2)
-
-    
-    var newCompound = simplifyCompoundNumberValuePairs(compound3);
-    PRINTLN(compound3);
-    PRINTLN(newCompound);
-  }
-  
    
   /**
    * Given a Compound, simplify all sub-Compounds which are two NumberValues.
