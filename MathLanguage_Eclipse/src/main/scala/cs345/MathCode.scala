@@ -13,6 +13,7 @@ class MathCode {
     def * (rhs: Value):Value
     def / (rhs: Value):Value
     def ^ (rhs: Value):Value
+    def unary_-(): Value = Compound("-", 0, this)
     def OVER (rhs: Value):Value
   }
   
@@ -76,10 +77,6 @@ class MathCode {
     def ^ (rhs: Value): Value = simplify(Compound("^", this, rhs))
     def OVER (rhs: Value): Value = simplify(Compound("/", this, rhs))
   }
-  
-  
-  //unary minus
-  def neg(rhs:Value):Value = Compound("-",0,rhs)
 
   //***************************************************************************
   //* IMPLICITS:
@@ -106,7 +103,9 @@ class MathCode {
   //***************************************************************************
   
   case class Variable(variableName:Symbol) {
-    def :=(value:Value) = {
+    def :=(value:Value) : Unit= {
+      if(variableMap contains variableName)
+        throw new Exception("Redefinition is now allowed!")
       variableMap += (variableName -> value)
     }
   }
@@ -117,6 +116,8 @@ class MathCode {
   case class Appliable(val applier:Symbol) {
     case class FunctionRegistration(parameterName:Symbol) {
       def :=(expression:Value) : Unit = {
+        if(functionMap contains applier)
+          throw new Exception("Redefinition is now allowed!")
         ensureValueOnlyContainsUnboundWithSymbolicName(expression, parameterName)
         functionMap += (applier -> new FunctionImplementation(parameterName, expression))
       }
