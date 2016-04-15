@@ -22,6 +22,16 @@ object MathDemo extends MathCode{
 
     println
     PRINTLN_EVALUATE((1 OVER 3) - (3 OVER 1))
+
+    println
+    'c := 4
+    'a := 3 + 'c
+    PRINTLN_EVALUATE('a)
+
+    println
+    PRINTLN_EVALUATE(('d+'y)*('z+'w))
+    PRINTLN_EVALUATE(('d-'y)*('z+'w))
+    PRINTLN_EVALUATE(('d-'y)*('z-'w))
     
 //
 //    LET('three) BE 3

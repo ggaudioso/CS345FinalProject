@@ -20,7 +20,7 @@ class MathCode {
   //***************************************************************************
   //* TYPES IN OUR LANGUAGE AND THEIR OPERATORS:
   //***************************************************************************
-  
+
   // "numbers" - Rational, bigint, bigdecimal, whatever. But an actual, known number.
   // Namely, a known number that isn't irrational
   case class NumberValue(num:BigInt, den:BigInt) extends Value {
@@ -46,7 +46,7 @@ class MathCode {
         if (den2==1) 
           NumberValue(num.pow(num2.toInt), den.pow(den2.toInt))
         else
-          simplify(Compound("^",NumberValue(num.pow(num2.toInt), den.pow(num2.toInt)), NumberValue(1,den2)))
+          Compound("^",NumberValue(num.pow(num2.toInt), den.pow(num2.toInt)), NumberValue(1,den2))
       }
       case otherwise => simplify(Compound("^", this, rhs))
     }
@@ -65,6 +65,9 @@ class MathCode {
     simplify(NumberValue(num,den))
   }
 
+  implicit class Int2NV(v:Int) {
+    def + (rhs: Symbol): Value = NumberValue(v, 1) + Unbound(rhs)
+  }
   
   //unbound variables
   case class Unbound(sym:Symbol) extends Value {
@@ -157,6 +160,14 @@ class MathCode {
         }
         case _ => parrhs = false
       }
+      if (op.equals("-")) {
+        rhs match {
+          case Compound(_,_,_) => {
+            parrhs = true
+          }
+          case _ => {}
+        }
+      }
       if (parlhs) print("(")
       PRINT(lhs,approximate)
       if (parlhs) print(")")
@@ -229,58 +240,84 @@ class MathCode {
   //* HELPER METHODS.
   //***************************************************************************
   
+  def debug_print(v:Value, depth:Int = 0):Unit = v match {
+    case NumberValue(n,d) => print("NV($n,$d)")
+    case Compound(op, lhs, rhs) => {
+      print("("+op+" ")
+      debug_print(lhs, depth+3)
+      println()
+      var i = 0
+      for (i <- 0 to depth+2) {
+        print(" ")
+      }
+      debug_print(rhs, depth+3)
+      print(")")
+      if (depth == 0) println()
+    }
+    case Unbound(s) => print(s.toString)
+  }
+
+  def simplify_any_compound(outer_op:String, lhs:Value, c:Compound):Value = c match {
+    case Compound(inner_op, lhs1, rhs1) => {
+      println("Simplifying:")
+      debug_print(Compound(outer_op, lhs, c))
+
+      (outer_op, inner_op) match {
+        // Commutative operators
+        case ("*",_) | ("+",_) => Compound(outer_op, Compound(inner_op, lhs1, rhs1), lhs)
+
+        // a - (b - c) => (a - b) + c
+        case ("-", "-") => Compound("+", simplify(Compound("-", lhs, lhs1)), simplify(rhs1))
+
+        // Everything else
+        case otherwise => Compound(outer_op, lhs, c)
+      }
+    }
+  }
+
   def simplify(v:Value, approximate:Boolean = false):Value = v match {
     case NumberValue(n,d) => {
       val g = gcd(n,d)
       NumberValue(n / g, d / g)
     }
-    case c:Compound => c.op match {
-      case "+" => {
-        // See whether lhs can be distributed across rhs (or vice-versa)
-        c.lhs match {
-          case lhs_nv:NumberValue => c.rhs match {
-            // TODO: What if both lhs2 and rhs2 are NumberValues?
-            case Compound("+",lhs2:NumberValue,rhs2) => Compound("+", lhs2 + lhs_nv, rhs2)
-            case Compound("+",lhs2,rhs2:NumberValue) => Compound("+", lhs2, rhs2 + lhs_nv)
-            case rhs_nv:NumberValue => lhs_nv + rhs_nv
-            case otherwise => c
-          }
-          case otherwise => c
+    case Compound(op, lhs:NumberValue, rhs:NumberValue) => op match {
+      case "+" => lhs + rhs
+      case "-" => lhs - rhs
+      case "*" => lhs * rhs
+      case "/" => lhs / rhs
+      case "^" => lhs ^ rhs
+    }
+    case Compound(outer_op, Compound(inner_op, lhs1, rhs1), rhs) => {
+      val simp_lhs1 = simplify(lhs1)
+      val simp_rhs1 = simplify(rhs1)
+      val simp_rhs = simplify(rhs)
+      println("Simplifying "+outer_op+","+inner_op)
+      debug_print(v)
+
+      (outer_op, inner_op) match {
+        case ("*", "+") | ("*", "-") => simplify(Compound(inner_op, simplify(Compound("*", simp_lhs1, simp_rhs)), simplify(Compound("*", simp_rhs1, simp_rhs))))
+
+        case otherwise => rhs match {
+          case rhs_c:Compound => simplify_any_compound(outer_op, Compound(inner_op, lhs1, rhs1), rhs_c)
+          case otherwise => v
         }
       }
-      case "*" => {
-        // See whether lhs and rhs are both NVs
-        // Also, if one is an addition/subtraction then we can/should distribute
-        c.lhs match {
-          case lhs_nv:NumberValue => c.rhs match {
-            case rhs_nv:NumberValue => lhs_nv * rhs_nv
-            case otherwise => c
-          }
-          case otherwise => c
-        }
-      }
-      case "/" => {
-        c.lhs match {
-          case lhs_nv:NumberValue => c.rhs match {
-            case rhs_nv:NumberValue => lhs_nv / rhs_nv
-            case otherwise => c
-          }
-          case otherwise => c
-        }
-      }
-      case "^" => {
-        if (approximate) {
-          c.lhs match {
-          case lhs_nv:NumberValue => c.rhs match {
-            case rhs_nv:NumberValue => pow(lhs_nv.num.toDouble/lhs_nv.den.toDouble, rhs_nv.num.toDouble/rhs_nv.den.toDouble)
-            case otherwise => c
-          }
-          case otherwise => c
-        }
-        }
-        else c
-      }
-      case otherwise => c
+    }
+    case Compound(outer_op, lhs, Compound(inner_op, lhs1, rhs1)) => {
+      simplify_any_compound(outer_op, lhs, Compound(inner_op, lhs1, rhs1))
+      /*println("Simplifying:")
+      debug_print(v)
+
+      (outer_op, inner_op) match {
+        // Commutative operators
+        case ("*",_) | ("+",_) => simplify(Compound(outer_op, Compound(inner_op, lhs1, rhs1), lhs))
+
+        // a - (b - c) => (a - b) + c
+        case ("-", "-") => Compound("+", simplify(Compound("-", lhs, lhs1)), simplify(rhs1))
+
+        // Everything else
+        case otherwise => v
+      }*/
     }
     case otherwise => v
   }
