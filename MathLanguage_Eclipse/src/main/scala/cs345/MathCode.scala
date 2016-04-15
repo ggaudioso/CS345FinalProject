@@ -94,7 +94,6 @@ class MathCode {
   
   implicit def symbolToVariable(variableName:Symbol):Variable = Variable(variableName)
   implicit def symbolToAppliable(symbolicName:Symbol):Function = Function(symbolicName)
-  
   implicit def symbolToFunctionRegistration(symbolicName:Symbol):FunctionRegistration = FunctionRegistration(symbolicName)
   
   // The reason we implicitly cast symbols to Unbounds instead of Values, is so that we can defer symbol lookup until
