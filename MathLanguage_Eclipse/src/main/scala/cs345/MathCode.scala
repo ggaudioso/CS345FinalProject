@@ -143,7 +143,6 @@ class MathCode {
   
   case class FunctionImplementation(val parameters:Seq[Symbol], val expression:Value) {
     def getValueFromArguments(values:Seq[Value]) : Value = {
-      return NumberValue(1,3)
       if (values.length != parameters.length)
         throw new Exception("Incorrect number of arguments")
       
