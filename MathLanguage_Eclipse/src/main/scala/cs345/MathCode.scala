@@ -14,6 +14,7 @@ class MathCode {
     def / (rhs: Value):Value
     def ^ (rhs: Value):Value
     def unary_-(): Value = Compound("-", 0, this)
+    def unary_+(): Value = this
     def OVER (rhs: Value):Value
   }
   
@@ -92,7 +93,8 @@ class MathCode {
   }
   
   implicit def symbolToVariable(variableName:Symbol):Variable = Variable(variableName)
-  implicit def symbolToAppliable(symbolicName:Symbol):Appliable = Appliable(symbolicName)
+  implicit def symbolToAppliable(symbolicName:Symbol):Function = Function(symbolicName)
+  implicit def symbolToFunctionRegistration(symbolicName:Symbol):FunctionRegistration = FunctionRegistration(symbolicName)
   
   // The reason we implicitly cast symbols to Unbounds instead of Values, is so that we can defer symbol lookup until
   // we actually need it.
@@ -110,20 +112,8 @@ class MathCode {
     }
   }
   
-  // Because of the way our implicits work, we can't distinguish between a function call and
-  // implied multiplication. E.g. 'y = 'b('x).
-  // Therefore, we just try to see if it's a function, if not, it must be a multiplication (which we currently don't allow).
-  case class Appliable(val applier:Symbol) {
-    case class FunctionRegistration(parameterName:Symbol) {
-      def :=(expression:Value) : Unit = {
-        if(functionMap contains applier)
-          throw new Exception("Redefinition is now allowed!")
-        ensureValueOnlyContainsUnboundWithSymbolicName(expression, parameterName)
-        functionMap += (applier -> new FunctionImplementation(parameterName, expression))
-      }
-    }
-    
-    def apply(argument:Value): Value = {
+  case class Function(val applier:Symbol) {
+    def apply(argument:Value): Value  = {
       functionMap.get(applier) match {
         case Some(implementation) => implementation.getValueFromArgument(argument)
         case None => {
@@ -132,10 +122,19 @@ class MathCode {
         }
       }
     }
-    
-    def apply(parameterName:Symbol): FunctionRegistration = FunctionRegistration(parameterName)
   }
   
+  case class FunctionRegistration(functionName:Symbol) {
+    case class Inner(parameterName:Symbol) {
+      def :=(expression:Value) {
+        if(functionMap contains functionName)
+          throw new Exception("Redefinition is now allowed!")
+        ensureValueOnlyContainsUnboundWithSymbolicName(expression, parameterName)
+        functionMap += (functionName -> new FunctionImplementation(parameterName, expression))
+      }
+    }
+    def of(parameterName:Symbol) = Inner(parameterName)
+  } 
   
   case class FunctionImplementation(val parameterName:Symbol, val expression:Value) {
     def getValueFromArgument(value:Value) : Value = {
