@@ -113,9 +113,9 @@ class MathCode {
   }
   
   case class Function(val applier:Symbol) {
-    def apply(argument:Value): Value  = {
+    def apply(arguments:Value*): Value  = {
       functionMap.get(applier) match {
-        case Some(implementation) => implementation.getValueFromArgument(argument)
+        case Some(implementation) => implementation.getValueFromArguments(arguments)
         case None => {
           /* We could try and implement implied multiplication here */
           throw new Exception("We do not allow implied multiplication!")
@@ -125,33 +125,40 @@ class MathCode {
   }
   
   case class FunctionRegistration(functionName:Symbol) {
-    case class Inner(parameterName:Symbol) {
+    case class Inner(parameters:Symbol*) {
       def :=(expression:Value) {
-        if((variableMap contains functionName) || (functionMap contains functionName))
-          throw new Exception("Redefinition is now allowed!")
-        ensureValueOnlyContainsUnboundWithSymbolicName(expression, parameterName)
-        functionMap += (functionName -> new FunctionImplementation(parameterName, expression))
+        for (parameter <- parameters) {
+          if((variableMap contains functionName) || (functionMap contains functionName))
+            throw new Exception("Redefinition is now allowed!")
+        }
+        ensureValueOnlyContainsUnboundWithSymbolicNames(expression, parameters)
+        functionMap += (functionName -> new FunctionImplementation(parameters, expression))
       }
     }
-    def of(parameterName:Symbol) = Inner(parameterName)
+    def of(parameters:Symbol*) = Inner(parameters : _*)
   } 
   
-  case class FunctionImplementation(val parameterName:Symbol, val expression:Value) {
-    def getValueFromArgument(value:Value) : Value = {
-      // First we need to evaluate the argument
-      var argument : Value = value match {
-        case nv:NumberValue => nv
-        case Unbound(symbol) => variableLookupFromBinding(symbol, variableMap)
-        case compound:Compound => simplify(getCompoundGivenBinding(compound, false, variableMap))
-      }
+  case class FunctionImplementation(val parameters:Seq[Symbol], val expression:Value) {
+    def getValueFromArguments(values:Seq[Value]) : Value = {
+      if (values.length != parameters.length)
+        throw new Exception("Incorrect number of arguments")
       
-      // Here's where we can handle multiple arguments
       var bindings:Map[Symbol, Value] = Map()
-      bindings += (parameterName -> argument)
-      
+      // First we need to evaluate the arguments
+      for (i <- 0 to (parameters.length - 1)) {
+        var value = values(i)
+        var parameter = parameters{i}
+        var argument : Value = value match {
+          case nv:NumberValue => nv
+          case Unbound(symbol) => variableLookupFromBinding(symbol, variableMap)
+          case compound:Compound => simplify(getCompoundGivenBinding(compound, false, variableMap))
+        }
+
+        bindings += (parameter -> argument)
+      }
       return expression match {
         case nv:NumberValue => nv
-        case umbound:Unbound => argument // as of now we only allow one argument, and our function registration class should handle an unknown unbound
+        case umbound:Unbound => variableLookupFromBinding(umbound.sym, bindings)
         case compound:Compound => getCompoundGivenBinding(compound, false, bindings)
       }
     }
@@ -224,7 +231,7 @@ class MathCode {
   }
   
   def printFunction(functionName:Symbol, functionImplementation:FunctionImplementation) : Unit = {
-    print("Function " + functionName.toString() + " takes in " + functionImplementation.parameterName)
+    print("Function " + functionName.toString() + " takes in " + functionImplementation.parameters)
     print(" and is defined as ")
     printWithUnevaluatedUnbounds(functionImplementation.expression)
   }
@@ -439,16 +446,18 @@ class MathCode {
   }
   
   // For use in function bodies, to make sure there isn't anything we don't expect
-  def ensureValueOnlyContainsUnboundWithSymbolicName(value:Value, symbolicName:Symbol): Unit = {
-    value match {
-      case NumberValue(_,_) => return
-      case Unbound(sym:Symbol) => {
-        if(sym != symbolicName)
-          throw new Exception("You can't have any variables in a function body other than the parameter. Parameter is " + symbolicName.toString() + ", found " + sym.toString())
-      }
-      case Compound(_, lhs, rhs) => {
-        ensureValueOnlyContainsUnboundWithSymbolicName(lhs, symbolicName)
-        ensureValueOnlyContainsUnboundWithSymbolicName(rhs, symbolicName)
+  def ensureValueOnlyContainsUnboundWithSymbolicNames(value:Value, symbolicNames:Seq[Symbol]): Unit = {
+    for (symbolicName <- symbolicNames) {
+      value match {
+        case NumberValue(_,_) => return
+        case Unbound(sym:Symbol) => {
+          if(!(symbolicNames contains symbolicName))
+            throw new Exception("You can't have any variables in a function body other than the parameter. Parameter is " + symbolicName.toString() + ", found " + sym.toString())
+        }
+        case Compound(_, lhs, rhs) => {
+          ensureValueOnlyContainsUnboundWithSymbolicNames(lhs, symbolicNames)
+          ensureValueOnlyContainsUnboundWithSymbolicNames(rhs, symbolicNames)
+        }
       }
     }
   }
