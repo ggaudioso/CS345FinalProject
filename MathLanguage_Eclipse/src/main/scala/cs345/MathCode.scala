@@ -54,6 +54,17 @@ class MathCode {
       case NumberValue(num2,den2) => NumberValue(num*den2, den*num2)
       case otherwise => simplify(Compound("/", this, rhs))
     }
+    
+    override def toString(): String = {
+
+       if (den == 1) {
+         return num.toString() 
+       } 
+       else {
+         return (num + "/" + den).toString(); 
+       }
+    
+    }
   }
   implicit def Int2Value(x:Int):NumberValue = NumberValue(x,1)
   implicit def Double2Value(x:Double):Value = {
@@ -74,6 +85,8 @@ class MathCode {
     def / (rhs: Value): Value = simplify(Compound("/",this, rhs))
     def ^ (rhs: Value): Value = simplify(Compound("^", this, rhs))
     def OVER (rhs: Value): Value = simplify(Compound("/", this, rhs))
+    
+    override def toString(): String = return (sym.toString).substring(1);
   }
 
    
@@ -182,52 +195,6 @@ class MathCode {
       PRINT(rhs,approximate)
       if (parrhs) print(")")
     }
-  }
-  
-  def GET_PRINT_STRING(value: Value, approximate:Boolean = false): String = value match {
-    case NumberValue(n,d) => {
-      if (!approximate) { if (d==1) return n.toString() else return (n+"/"+d).toString(); }
-      else return (n.toDouble/d.toDouble).toString();
-    }
-    case Unbound(sym) => return (sym.toString).substring(1); //get rid of '
-    
-    // This case doesn't matter for the use of the simplify compound method by Mike.
-    /*case Compound(op,lhs,rhs) => {
-      if (op.equals("-") && isNumberValue(lhs) && getNum(lhs) == 0) {
-        print(op)
-        if (isCompound(rhs)) {
-          print("(")
-          PRINT(rhs,approximate)
-          print(")")
-        }
-        else 
-          PRINT(rhs,approximate)
-        return
-      }
-      var parlhs = false 
-      var parrhs = false
-      lhs match {
-        case Compound(lop,llhs,lrhs) => {
-          if (precedence(operators.indexOf(lop)) > precedence(operators.indexOf(op))) 
-            parlhs = true
-        }
-        case _ => parlhs = false
-      }
-      rhs match {
-        case Compound(rop,rlhs,rrhs) => {
-          if (precedence(operators.indexOf(rop)) > precedence(operators.indexOf(op)))
-            parrhs = true
-        }
-        case _ => parrhs = false
-      }
-      if (parlhs) print("(")
-      PRINT(lhs,approximate)
-      if (parlhs) print(")")
-      print(" " + op + " ")
-      if (parrhs) print("(")
-      PRINT(rhs,approximate)
-      if (parrhs) print(")")
-    }*/
   }
   
   def PRINTLN_USE_BINDINGS(value:Value) = PRINTLN_EVALUATE(value)
@@ -482,7 +449,7 @@ class MathCode {
     // Should be: ((a + -1 + a) * (54 + a + a))
     println(simplifyGroups(group7));
     
-    // Should be: 
+    // Should be: (7 * (54 + a + a))
     println(simplifyGroups(group8));
     
     
@@ -1144,7 +1111,7 @@ class MathCode {
       
       for (element: Value <- compoundCluster.children) {
         
-        returnString += GET_PRINT_STRING(element);
+        returnString += element.toString();
         
         // If we still have operators to print.
         if (currentOpIndex < compoundCluster.ops.length) {
@@ -1174,7 +1141,7 @@ class MathCode {
       }
       // Else it's not, just take its Value.
       else {
-        returnString += GET_PRINT_STRING(element);
+        returnString += element.toString();
       }
       
       // If we still have operators to print.
@@ -1200,7 +1167,7 @@ class MathCode {
     // Base case: neither the LHS or RHS are compounds. Thus, this
     // is a leaf compound.
     if (!isCompound(compound.lhs) && !isCompound(compound.rhs)) {
-      return "(" + GET_PRINT_STRING(compound.lhs) + " " + compound.op + " " + GET_PRINT_STRING(compound.rhs) + ")";
+      return "(" + compound.lhs.toString() + " " + compound.op + " " + compound.rhs.toString() + ")";
     }
     
     // Either the LHS or the RHS (or both) are Compounds. Get their strings
@@ -1216,7 +1183,7 @@ class MathCode {
     else {
       // Note: for now we are using the same logic as the PRINT method to get
       // String representations for non-Compounds.
-      lhsString = GET_PRINT_STRING(compound.lhs);
+      lhsString = compound.lhs.toString();
     }
     
     // If RHS is compound, get its string.
@@ -1227,7 +1194,7 @@ class MathCode {
     else {
       // Note: for now we are using the same logic as the PRINT method to get
       // String representations for non-Compounds.
-      rhsString = GET_PRINT_STRING(compound.rhs);
+      rhsString = compound.rhs.toString();
     }
     
     return "(" + lhsString + " " + compound.op + " " + rhsString + ")";
