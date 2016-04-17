@@ -82,9 +82,10 @@ object MathDemo extends MathCode{
 //    LET ('f) BE 56
 //    PRINTLN_USE_BINDINGS('g)
     
+    'x := 'a + 'b + 'c + 'd
+    PRINTLN('x)
     
-    
-    //TEST
+    TEST
     
     
  
