@@ -335,12 +335,7 @@ class MathCode {
     var compound4 = Compound("+", NumberValue(55,1), compound1);
     var compound5 = Compound("-", compound4, compound2);
     var compound6 = Compound("+", compound1, compound2);
-    
     var longCompoundTest = Compound("+", Compound("-", Unbound('a), Unbound('a)), Compound("-", Unbound('a), Unbound('a)));
-    
-    //var compound4 = Compound("+", Unbound('x), compound)
-    //var compound4 = Compound("-", compound3, NumberValue(5,1));
-    //var compound5 = Compound("+", NumberValue(1,1), NumberValue(1,1));
     
     // This is 'x := 'a + 'b + 'c
     var test = Compound("+",Compound("+",Unbound('a),Unbound('b)),Unbound('c));
@@ -349,23 +344,10 @@ class MathCode {
     var test2 = Compound("+",Compound("+",Compound("+",Unbound('a),Unbound('b)),Unbound('c)),Unbound('d));
 
     var test3 = Compound("-", test, test2);
-    
     var test4 = Compound("*", compound3, compound5);
-    
     var test5 = Compound("*", compound6, compound5);
-    //var newCompound = simplifyCompoundNumberValuePairs(compound4);
-    //PRINTLN(compound3);
-    //PRINTLN(newCompound);
-    
-    //println("Testing for flatten to String: ");
-    
-    //println(flattenCompoundToString(test2));
-    //var cc1: CompoundCluster = compoundToCompoundCluster(test2);
-    //println(flattenCompoundClusterToString(cc1));
-    //println(flattenCompoundToString(test3));
-    
-    //var cc2: CompoundCluster = compoundToCompoundCluster(test3);
-    //println(flattenCompoundClusterToString(cc2));
+    var test6 = Compound("^", Compound("-", Compound("+", 'a, 1), 'a), 3);
+    var test7 = Compound("^", Compound("-", Compound("+", 'a, 1), 'a), 'z);
     
     println("\nTESTING CONVERT TO CompoundCluster: " );
     
@@ -388,7 +370,16 @@ class MathCode {
     var cc7: CompoundCluster = compoundToCompoundCluster(test5);
     // (((a + 3) + (4 - a)) * ((55 + (a + 3)) - (4 - a)))
     println(flattenCompoundClusterToString(cc7));
-
+    
+    var cc8: CompoundCluster = compoundToCompoundCluster(test6);
+    // (((a + 1) - a) ^ 3)
+    println(flattenCompoundClusterToString(cc8));
+    
+    var cc9: CompoundCluster = compoundToCompoundCluster(test7);
+    // (((a + 1) - a) ^ z)
+    println(flattenCompoundClusterToString(cc9));
+    
+    
     
     //println(flattenCompoundToString(test));
     //println(flattenCompoundToString(test2));
@@ -403,36 +394,44 @@ class MathCode {
     println("\nTESTING MERGE GROUPS FUNCTION: ");
     
     // (a + 3 - 4 + a)
-    var group1: CompoundCluster = mergeGroups(cc3.ops(0), cc3.children(0).asInstanceOf[CompoundCluster], cc3.children(1).asInstanceOf[CompoundCluster]);
+    var group1: CompoundCluster = mergeGroups(cc3.ops(0), cc3.children(0), cc3.children(1));
     println(group1);
     
     // (a + 3 + 4 - a)
-    var group2: CompoundCluster = mergeGroups("+", cc3.children(0).asInstanceOf[CompoundCluster], cc3.children(1).asInstanceOf[CompoundCluster]);
+    var group2: CompoundCluster = mergeGroups("+", cc3.children(0), cc3.children(1));
     println(group2);
     
     // ((a + 3) * (4 - a))
-    var group3: CompoundCluster = mergeGroups("*", cc3.children(0).asInstanceOf[CompoundCluster], cc3.children(1).asInstanceOf[CompoundCluster]);
+    var group3: CompoundCluster = mergeGroups("*", cc3.children(0), cc3.children(1));
     println(group3);
     
     // ((a + 3) / (4 - a))
-    var group4: CompoundCluster = mergeGroups("/", cc3.children(0).asInstanceOf[CompoundCluster], cc3.children(1).asInstanceOf[CompoundCluster]);
+    var group4: CompoundCluster = mergeGroups("/", cc3.children(0), cc3.children(1));
     println(group4);
     
     // (55 + a + 3 - 4 + a)
-    var group5: CompoundCluster = mergeGroups(cc4.ops(0), cc4.children(0).asInstanceOf[CompoundCluster], cc4.children(1).asInstanceOf[CompoundCluster]);
+    var group5: CompoundCluster = mergeGroups(cc4.ops(0), cc4.children(0), cc4.children(1));
     println(group5);
     
     // (a - a + a - a)
-    var group6: CompoundCluster = mergeGroups(cc5.ops(0), cc5.children(0).asInstanceOf[CompoundCluster], cc5.children(1).asInstanceOf[CompoundCluster]);
+    var group6: CompoundCluster = mergeGroups(cc5.ops(0), cc5.children(0), cc5.children(1));
     println(group6);
     
     // ((a + 3 - 4 + a) * (55 + a + 3 - 4 + a))
-    var group7: CompoundCluster = mergeGroups(cc6.ops(0), cc6.children(0).asInstanceOf[CompoundCluster], cc6.children(1).asInstanceOf[CompoundCluster]);
+    var group7: CompoundCluster = mergeGroups(cc6.ops(0), cc6.children(0), cc6.children(1));
     println(group7);
     
     // ((a + 3 + 4 - a) * (55 + a + 3 - 4 + a))
-    var group8: CompoundCluster = mergeGroups(cc7.ops(0), cc7.children(0).asInstanceOf[CompoundCluster], cc7.children(1).asInstanceOf[CompoundCluster]);
+    var group8: CompoundCluster = mergeGroups(cc7.ops(0), cc7.children(0), cc7.children(1));
     println(group8);
+    
+    // ((a + 1 - a) ^ 3)
+    var group9: CompoundCluster = mergeGroups(cc8.ops(0), cc8.children(0), cc8.children(1));
+    println(group9);
+    
+    // ((a + 1 - a) ^ z)
+    var group10: CompoundCluster = mergeGroups(cc9.ops(0), cc9.children(0), cc9.children(1));
+    println(group10);
     
     println("\nFINAL SIMPLIFY TESTS BELOW: ");
     
@@ -465,14 +464,42 @@ class MathCode {
     println(simplifyCompound(test5));
     println();
     
+    // Should be: 1
+    println(simplifyGroups(group9));
+    println(simplifyCompound(test6));
+    println();
+    
+    // Should be: (1 ^ z)
+    println(simplifyGroups(group10));
+    println(simplifyCompound(test7));
+    println();
+    
   }
   
   /**
    * Simplifies the given Compound, returns a CompoundCluster.
    */
-  def simplifyCompound(compound: Compound): Value = {
+  def simplifyCompound(compound: Compound, approximate: Boolean = false): Value = {
     
-    var tempValue: Value = simplifyCompoundNumberValuePairs(compound);
+    // Replace all variables by their bindings.
+    var tempValue: Value = getCompoundWithBindings(compound, approximate);
+    
+    // If the result is not a Compound, then return it. It could be a
+    // NumberValue or an Unbound, for example.
+    if (isNumberValue(tempValue) || isUnbound(tempValue)) {
+      return tempValue;
+    }
+    
+    // Else, it is a compound, so cast it. Check just to make sure.
+    if (!isCompound(tempValue)) {
+      println("ERROR: simplifyCompound");
+      return null;
+    }
+    
+    var tempCompound: Compound = tempValue.asInstanceOf[Compound]
+    
+    // Simplify all pairs of two NumberValues.
+    tempValue = simplifyCompoundNumberValuePairs(tempCompound);
     
     // If we were able to generate a single NumberValue from the first
     // step of simplification (this means all values in the Compound were
@@ -484,7 +511,7 @@ class MathCode {
     // Else, we will create a CompoundCluster, merge its groups, and simplify
     // its groups. We know it is a Compound, so casting is fine here.
     var cc: CompoundCluster = compoundToCompoundCluster(tempValue.asInstanceOf[Compound]);
-    cc = mergeGroups(cc.ops(0), cc.children(0).asInstanceOf[CompoundCluster], cc.children(1).asInstanceOf[CompoundCluster]);
+    cc = mergeGroups(cc.ops(0), cc.children(0), cc.children(1));
     var finalResult: Value = simplifyGroups(cc);
     
     return finalResult;
@@ -1026,6 +1053,7 @@ class MathCode {
           case "-" => currLHS.-(currRHS);
           case "*" => currLHS.*(currRHS);
           case "/" => currLHS./(currRHS);
+          case "^" => currLHS.^(currRHS);
         }
           
         var newNumberValue: NumberValue = newValue.asInstanceOf[NumberValue];
