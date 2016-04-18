@@ -25,6 +25,9 @@ object MathDemo extends MathCode{
     PRINTLN_EVALUATE(('d+'y)*('z+'w))
     PRINTLN_EVALUATE(('d-'y)*('z+'w))
     PRINTLN_EVALUATE(('d-'y)*('z-'w))
+
+    println
+    PRINTLN(1^'a)
     
 //
 //    LET('three) BE 3

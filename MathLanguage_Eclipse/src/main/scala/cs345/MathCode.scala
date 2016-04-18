@@ -91,10 +91,14 @@ class MathCode {
     val den = digits.toInt
     simplify(NumberValue(num,den))
   }
-  /*implicit class Int2NV(v:Int) {
+  implicit class Int2NV(v:Int) {
     def + (rhs: Symbol): Value = NumberValue(v, 1) + Unbound(rhs)
-  }*/
-  
+    def - (rhs: Symbol): Value = NumberValue(v, 1) - Unbound(rhs)
+    def * (rhs: Symbol): Value = NumberValue(v, 1) * Unbound(rhs)
+    def / (rhs: Symbol): Value = NumberValue(v, 1) / Unbound(rhs)
+    def ^ (rhs: Symbol): Value = NumberValue(v, 1) ^ Unbound(rhs)
+  }
+
   implicit def symbolToVariable(variableName:Symbol):Variable = Variable(variableName)
   implicit def symbolToAppliable(symbolicName:Symbol):Function = Function(symbolicName)
   implicit def symbolToFunctionRegistration(symbolicName:Symbol):FunctionRegistration = FunctionRegistration(symbolicName)
@@ -310,47 +314,55 @@ class MathCode {
     }
   }
 
+  // From StackOverflow, so that we can pattern-match BigInts
+  object IntBig {
+    def unapply(b: BigInt) = Option(b.toInt)
+  }
+
   def simplify(v:Value, approximate:Boolean = false):Value = {
     println("Simplifying")
     debug_print(v)
     println
     v match {
-    case NumberValue(n,d) => {
-      if (n == 0) {
-        NumberValue(0,1)
-      } else {
-        val g = gcd(n,d)
-        NumberValue(n / g, d / g)
-      }
-    }
-    case Compound(op, lhs:NumberValue, rhs:NumberValue) => op match {
-      case "+" => lhs + rhs
-      case "-" => lhs - rhs
-      case "*" => lhs * rhs
-      case "/" => lhs / rhs
-      case "^" => lhs ^ rhs
-    }
-    case Compound(outer_op, Compound(inner_op, lhs1, rhs1), rhs) => {
-      val simp_lhs1 = simplify(lhs1)
-      val simp_rhs1 = simplify(rhs1)
-      val simp_rhs = simplify(rhs)
-      println("Simplifying "+outer_op+","+inner_op)
-      debug_print(v)
-
-      (outer_op, inner_op) match {
-        case ("*", "+") | ("*", "-") => simplify(Compound(inner_op, simplify(Compound("*", simp_lhs1, simp_rhs)), simplify(Compound("*", simp_rhs1, simp_rhs))))
-
-        case otherwise => rhs match {
-          case rhs_c:Compound => simplify_any_compound(outer_op, Compound(inner_op, lhs1, rhs1), rhs_c)
-          case otherwise => v
+      case NumberValue(n,d) => {
+        if (n == 0) {
+          NumberValue(0,1)
+        } else {
+          val g = gcd(n,d)
+          NumberValue(n / g, d / g)
         }
       }
+      case Compound(op, lhs:NumberValue, rhs:NumberValue) => op match {
+        case "+" => lhs + rhs
+        case "-" => lhs - rhs
+        case "*" => lhs * rhs
+        case "/" => lhs / rhs
+        case "^" => lhs ^ rhs
+      }
+      case Compound("^", NumberValue(IntBig(1),IntBig(1)), rhs) => {
+        NumberValue(1,1)
+      }
+      case Compound(outer_op, Compound(inner_op, lhs1, rhs1), rhs) => {
+        val simp_lhs1 = simplify(lhs1)
+        val simp_rhs1 = simplify(rhs1)
+        val simp_rhs = simplify(rhs)
+        println("Simplifying "+outer_op+","+inner_op)
+        debug_print(v)
+
+        (outer_op, inner_op) match {
+          case ("*", "+") | ("*", "-") => simplify(Compound(inner_op, simplify(Compound("*", simp_lhs1, simp_rhs)), simplify(Compound("*", simp_rhs1, simp_rhs))))
+
+          case otherwise => rhs match {
+            case rhs_c:Compound => simplify_any_compound(outer_op, Compound(inner_op, lhs1, rhs1), rhs_c)
+            case otherwise => v
+          }
+        }
+      }
+      case Compound(outer_op, lhs, Compound(inner_op, lhs1, rhs1)) => {
+        simplify_any_compound(outer_op, lhs, Compound(inner_op, lhs1, rhs1))
+      }
+      case otherwise => v
     }
-    case Compound(outer_op, lhs, Compound(inner_op, lhs1, rhs1)) => {
-      simplify_any_compound(outer_op, lhs, Compound(inner_op, lhs1, rhs1))
-    }
-    case otherwise => v
-  }
   }
    
   /**
