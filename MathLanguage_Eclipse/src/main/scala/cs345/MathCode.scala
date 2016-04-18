@@ -98,6 +98,8 @@ class MathCode {
     def / (rhs: Value): Value = simplify(Compound("/", this, rhs))
     def ^ (rhs: Value): Value = simplify(Compound("^", this, rhs))
     def OVER (rhs: Value): Value = simplify(Compound("/", this, rhs))
+    
+    override def toString(): String = return flattenCompoundToString(this);
   }
   
   /*
@@ -220,7 +222,7 @@ class MathCode {
   
   
   // PRINTSTRING syntax: PRINTSTRING(myString: String)
-  def PRINTSTRING(value : String) : Unit = println(value)
+  def PRINTSTRING(value : String): Unit = println(value)
   
   
   
@@ -365,7 +367,7 @@ class MathCode {
     //var cc2: CompoundCluster = compoundToCompoundCluster(test3);
     //println(flattenCompoundClusterToString(cc2));
     
-    println("Testing CompoundCluster stuff: " );
+    println("\nTESTING CONVERT TO CompoundCluster: " );
     
     var cc3: CompoundCluster = compoundToCompoundCluster(compound3);
     // ((a + 3) - (4 - a))
@@ -436,23 +438,56 @@ class MathCode {
     
     // Should be: (a + -1 + a)
     println(simplifyGroups(group1));
+    println(simplifyCompound(compound3));
+    println();
     
     // Should be: 7
     println(simplifyGroups(group2));
+    println();
     
     // Should be: (54 + a + a)
     println(simplifyGroups(group5));
+    println(simplifyCompound(compound5));
+    println();
     
     // Should be: 0
     println(simplifyGroups(group6));
+    println(simplifyCompound(longCompoundTest));
+    println();
     
     // Should be: ((a + -1 + a) * (54 + a + a))
     println(simplifyGroups(group7));
+    println(simplifyCompound(test4));
+    println();
     
     // Should be: (7 * (54 + a + a))
     println(simplifyGroups(group8));
+    println(simplifyCompound(test5));
+    println();
     
+  }
+  
+  /**
+   * Simplifies the given Compound, returns a CompoundCluster.
+   */
+  def simplifyCompound(compound: Compound): Value = {
     
+    var tempValue: Value = simplifyCompoundNumberValuePairs(compound);
+    
+    // If we were able to generate a single NumberValue from the first
+    // step of simplification (this means all values in the Compound were
+    // NumberValues). Else, it returns a Compound.
+    if (!isCompound(tempValue)) {
+      return tempValue;
+    }
+    
+    // Else, we will create a CompoundCluster, merge its groups, and simplify
+    // its groups. We know it is a Compound, so casting is fine here.
+    var cc: CompoundCluster = compoundToCompoundCluster(tempValue.asInstanceOf[Compound]);
+    cc = mergeGroups(cc.ops(0), cc.children(0).asInstanceOf[CompoundCluster], cc.children(1).asInstanceOf[CompoundCluster]);
+    var finalResult: Value = simplifyGroups(cc);
+    
+    return finalResult;
   }
   
   
