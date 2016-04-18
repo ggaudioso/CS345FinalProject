@@ -86,6 +86,7 @@ class MathCode {
     def ^ (rhs: Value): Value = simplify(Compound("^", this, rhs))
     def OVER (rhs: Value): Value = simplify(Compound("/", this, rhs))
     
+    // Gets rid of '.
     override def toString(): String = return (sym.toString).substring(1);
   }
 
@@ -99,7 +100,14 @@ class MathCode {
     def ^ (rhs: Value): Value = simplify(Compound("^", this, rhs))
     def OVER (rhs: Value): Value = simplify(Compound("/", this, rhs))
     
-    override def toString(): String = return flattenCompoundToString(this);
+    override def toString(): String = {
+      
+      // This will return either a NumberValue, an UnBound, or a 
+      // CompoundCluster.
+      var value: Value = simplifyCompoundtoCompoundCluster(this);
+      
+      return value.toString();
+    }
   }
   
   /*
@@ -438,6 +446,8 @@ class MathCode {
     // Should be: (a + -1 + a)
     println(simplifyGroups(group1));
     println(simplifyCompound(compound3));
+    PRINTLN(compound3);
+    println(compound3);
     println();
     
     // Should be: 7
@@ -447,37 +457,91 @@ class MathCode {
     // Should be: (54 + a + a)
     println(simplifyGroups(group5));
     println(simplifyCompound(compound5));
+    PRINTLN(compound5);
+    println(compound5);
     println();
     
     // Should be: 0
     println(simplifyGroups(group6));
     println(simplifyCompound(longCompoundTest));
+    PRINTLN(longCompoundTest);
+    println(longCompoundTest);
     println();
     
     // Should be: ((a + -1 + a) * (54 + a + a))
     println(simplifyGroups(group7));
     println(simplifyCompound(test4));
+    PRINTLN(test4);
+    println(test4);
     println();
     
     // Should be: (7 * (54 + a + a))
     println(simplifyGroups(group8));
     println(simplifyCompound(test5));
+    PRINTLN(test5);
+    println(test5);
     println();
     
     // Should be: 1
     println(simplifyGroups(group9));
     println(simplifyCompound(test6));
+    PRINTLN(test6);
+    println(test6);
     println();
     
     // Should be: (1 ^ z)
     println(simplifyGroups(group10));
     println(simplifyCompound(test7));
+    PRINTLN(test7);
+    println(test7);
     println();
     
   }
   
   /**
    * Simplifies the given Compound, returns a CompoundCluster.
+   */
+  def simplifyCompoundtoCompoundCluster(compound: Compound, approximate: Boolean = false): Value = {
+    
+    // Replace all variables by their bindings.
+    var tempValue: Value = getCompoundWithBindings(compound, approximate);
+    
+    // If the result is not a Compound, then return it. It could be a
+    // NumberValue or an Unbound, for example.
+    if (isNumberValue(tempValue) || isUnbound(tempValue)) {
+      return tempValue;
+    }
+    
+    // Else, it is a compound, so cast it. Check just to make sure.
+    if (!isCompound(tempValue)) {
+      println("ERROR: simplifyCompound");
+      return null;
+    }
+    
+    var tempCompound: Compound = tempValue.asInstanceOf[Compound]
+    
+    // Simplify all pairs of two NumberValues.
+    tempValue = simplifyCompoundNumberValuePairs(tempCompound);
+    
+    // If we were able to generate a single NumberValue from the first
+    // step of simplification (this means all values in the Compound were
+    // NumberValues). Else, it returns a Compound.
+    if (!isCompound(tempValue)) {
+      return tempValue;
+    }
+    
+    // Else, we will create a CompoundCluster, merge its groups, and simplify
+    // its groups. We know it is a Compound, so casting is fine here.
+    var cc: CompoundCluster = compoundToCompoundCluster(tempValue.asInstanceOf[Compound]);
+    cc = mergeGroups(cc.ops(0), cc.children(0), cc.children(1));
+    var finalResult: Value = simplifyGroups(cc);
+    
+    return finalResult;
+  }
+  
+  
+  /**
+   * Simplifies the given Compound, returns a Compound.
    */
   def simplifyCompound(compound: Compound, approximate: Boolean = false): Value = {
     
@@ -513,6 +577,9 @@ class MathCode {
     var cc: CompoundCluster = compoundToCompoundCluster(tempValue.asInstanceOf[Compound]);
     cc = mergeGroups(cc.ops(0), cc.children(0), cc.children(1));
     var finalResult: Value = simplifyGroups(cc);
+    
+    // TODO (Mike)
+    //Convert back to Compound.
     
     return finalResult;
   }
