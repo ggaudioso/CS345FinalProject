@@ -100,6 +100,7 @@ class MathCode {
     def ^ (rhs: Value): Value = simplify(Compound("^", this, rhs))
     def OVER (rhs: Value): Value = simplify(Compound("/", this, rhs))
     
+    
     override def toString(): String = {
       
       // This will return either a NumberValue, an UnBound, or a 
@@ -107,6 +108,9 @@ class MathCode {
       var value: Value = simplifyCompoundtoCompoundCluster(this);
       
       return value.toString();
+      
+      // If we want a fully-parenthesized left-associative version.
+      //return flattenCompoundToString(this);
     }
   }
   
@@ -158,7 +162,7 @@ class MathCode {
     case Unbound(sym) => println(sym) 
     case Compound(op,lhs,rhs) => {
       PRINT(simplify(value),approximate)
-      println
+      println();
     }
   }
   
@@ -170,6 +174,15 @@ class MathCode {
     }
     case Unbound(sym) => print((sym.toString).substring(1)) //get rid of '
     case Compound(op,lhs,rhs) => {
+      
+      // Mike Added:
+      // This will call the Compound's toString, which turns it into a
+      // CompoundCluster, simplifies it, and prints it in CompoundCluster
+      // form (i.e., proper parentheses and grouping of terms).
+      print(value);
+      
+      // Mike Removed:
+      /*
       if (op.equals("-") && isNumberValue(lhs) && getNum(lhs) == 0) {
         print(op)
         if (isCompound(rhs)) {
@@ -204,6 +217,8 @@ class MathCode {
       if (parrhs) print("(")
       PRINT(rhs,approximate)
       if (parrhs) print(")")
+      */
+      
     }
   }
   
@@ -215,7 +230,7 @@ class MathCode {
     case Unbound(sym) => println(sym) 
     case Compound(op,lhs,rhs) => {
       PRINT(getCompoundWithBindings(value.asInstanceOf[Compound]))
-      println
+      println();
     }
   }
   
@@ -274,7 +289,13 @@ class MathCode {
       val g = gcd(n,d)
       NumberValue(n / g, d / g)
     }
+    
+    
+    // Mike: Added:
+    //case c: Compound => simplifyCompound(v.asInstanceOf[Compound]);
+    
     case c:Compound => c.op match {
+      
       case "+" => {
         // See whether lhs can be distributed across rhs (or vice-versa)
         c.lhs match {
@@ -321,7 +342,8 @@ class MathCode {
         else c
       }
       case otherwise => c
-    }
+    
+    }// */
     case otherwise => v
   }
   
@@ -387,6 +409,9 @@ class MathCode {
     // (((a + 1) - a) ^ z)
     println(flattenCompoundClusterToString(cc9));
     
+    // (((a + b) + c) + d)
+    var cc10: CompoundCluster = compoundToCompoundCluster(test2);
+    println(flattenCompoundClusterToString(cc10));
     
     
     //println(flattenCompoundToString(test));
@@ -440,6 +465,10 @@ class MathCode {
     // ((a + 1 - a) ^ z)
     var group10: CompoundCluster = mergeGroups(cc9.ops(0), cc9.children(0), cc9.children(1));
     println(group10);
+    
+    // (a + b + c + d)
+    var group11: CompoundCluster = mergeGroups(cc10.ops(0), cc10.children(0), cc10.children(1));
+    println(group11);
     
     println("\nFINAL SIMPLIFY TESTS BELOW: ");
     
@@ -496,7 +525,18 @@ class MathCode {
     println(test7);
     println();
     
+    println("------\n\n");
+    
+    println(flattenCompoundToString(compoundClusterToCompound(simplifyGroups(group7).asInstanceOf[CompoundCluster])));
+    
+    // Should be: (1 ^ z)
+    println(simplifyGroups(group11));
+    println(simplifyCompound(test2));
+    PRINTLN(test2);
+    println(test2);
+    println();
   }
+  
   
   /**
    * Simplifies the given Compound, returns a CompoundCluster.
@@ -578,8 +618,14 @@ class MathCode {
     cc = mergeGroups(cc.ops(0), cc.children(0), cc.children(1));
     var finalResult: Value = simplifyGroups(cc);
     
-    // TODO (Mike)
-    //Convert back to Compound.
+    // If the final result is not a CompoundCluster.
+    if (isNumberValue(finalResult) || isUnbound(finalResult)) {
+      return finalResult;
+    }
+    
+    // Else, the final result is a CompoundCluster. Map it to a Compound
+    // and return it.
+    finalResult = compoundClusterToCompound(finalResult.asInstanceOf[CompoundCluster]);
     
     return finalResult;
   }
@@ -846,24 +892,7 @@ class MathCode {
     //* Simpilify the given group below.
     //***********************************
     
-    //println("CURRENT GROUP TO SIMPLIFY: " + new CompoundCluster(newOps, newChildren));
-    
-    // It is possible that 
-    
-    // TODO ??
-    // Try to merge groups, because the LHS and RHS may have turned into
-    // something which can be turned into a single group, and thus needs
-    // to be grouped before this method is performed. This is only possible
-    // to do if there is a single LHS and RHS and operation.
-    //if ((newChildren.length == 2) && (newOps.length == 1)) {
-      //println("Children passing in: " + newChildren(0));
-      //println("Children passing in: " + newChildren(1));
-      //println("Ops passing in: " + newOps);
-      //var newClusterCompound = mergeGroups(newOps(0), newChildren(0), newChildren(1));
-      //newChildren = newClusterCompound.children;
-      //newOps = newClusterCompound.ops;
-    //}
-    
+    //println("CURRENT GROUP TO SIMPLIFY: " + new CompoundCluster(newOps, newChildren)); 
     
     //******************************************************************
     //* Try to find matching Unbound objects of the couple {a, -a}.
@@ -1159,6 +1188,65 @@ class MathCode {
     
     // Return the new CompoundCluster.
     return new CompoundCluster(newOps, newChildren);
+  }
+  
+  
+  /**
+   * Converts a CompoundCluster to a Compound.
+   */
+  def compoundClusterToCompound(cc: CompoundCluster): Compound = {
+    
+    // If this is a leaf CompundCluster, then all of the children are
+    // NumberValues or Unbounds. In this case, convert to a Compound and return
+    // this Compound.
+    
+    // If any of the children are CompoundClusters, then we know we need to simplify
+    // each of them.
+    var newChildren: List[Value] = List();
+    
+    //println("\n NEW SET: ");
+    //println(cc.children);
+    //println(cc.ops);
+    
+    for (element <- cc.children)
+    {
+      if (isCompoundClusterValue(element)) {
+        
+        //println("ELEMENT: " + element);
+        
+        var newChild: Compound = compoundClusterToCompound(element.asInstanceOf[CompoundCluster]);
+        newChildren = newChildren.:+(newChild);
+      }
+      else {
+        newChildren = newChildren.:+(element);
+      }
+    }
+    
+    //println("All children are taken care of, newChildren = " + newChildren);
+    
+    // Now combine all children into a left-associative Compound structure and
+    // return it.
+    return groupToCompound(newChildren, cc.ops);
+  }
+  
+  /**
+   * Given a group of NumberValues and Unbounds, returns the proper
+   * left-associative Compound for this group.
+   */
+  def groupToCompound(values: List[Value], operators: List[String]): Compound = {
+    
+    //println("List of operators: " + operators);
+    //println("List of values: " + values);
+    
+    // Base case:
+    if (values.length == 2) {
+      return new Compound(operators(0), values(0), values(1));
+    }
+    
+    var valLength: Int = values.length;
+    var opsLength: Int = operators.length;
+    
+    return new Compound(operators(opsLength - 1), groupToCompound(values.take(valLength - 1), operators.take(opsLength - 1)), values(valLength - 1));
   }
   
   
