@@ -25,6 +25,7 @@ object MathDemo extends MathCode{
     PRINTLN_EVALUATE(('d+'y)*('z+'w))
     PRINTLN_EVALUATE(('d-'y)*('z+'w))
     PRINTLN_EVALUATE(('d-'y)*('z-'w))
+    PRINTLN_EVALUATE('z*('d-'y))
 
     println
     PRINTLN(1^'a)

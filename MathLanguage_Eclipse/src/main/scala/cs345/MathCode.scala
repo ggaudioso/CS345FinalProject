@@ -407,46 +407,33 @@ class MathCode {
       print(")")
       if (depth == 0) println()
     }
-/*<<<<<<< HEAD
-    
-    
-    // Mike: Added:
-    //case c: Compound => simplifyCompound(v.asInstanceOf[Compound]);
-    
-    case c:Compound => c.op match {
-      
-      case "+" => {
-        // See whether lhs can be distributed across rhs (or vice-versa)
-        c.lhs match {
-          case lhs_nv:NumberValue => c.rhs match {
-            // TODO: What if both lhs2 and rhs2 are NumberValues?
-            case Compound("+",lhs2:NumberValue,rhs2) => Compound("+", lhs2 + lhs_nv, rhs2)
-            case Compound("+",lhs2,rhs2:NumberValue) => Compound("+", lhs2, rhs2 + lhs_nv)
-            case rhs_nv:NumberValue => lhs_nv + rhs_nv
-            case otherwise => c
-          }
-          case otherwise => c
-        }
-=======*/
     case Unbound(s) => print(s.toString)
   }
 
-  def simplify_any_compound(outer_op:String, lhs:Value, c:Compound):Value = c match {
+  def simplify_any_compound(outer_op:String, lhs:Value, c:Compound, recurse:Boolean = true):Value = {
+    val x = simplify_any_compound2(outer_op, lhs, c)
+    if (recurse && !x._1)
+      simplify(x._2)
+    else
+      x._2
+  }
+
+  def simplify_any_compound2(outer_op:String, lhs:Value, c:Compound):(Boolean,Value) = c match {
     case Compound(inner_op, lhs1, rhs1) => {
-      println("Simplifying:")
-      debug_print(Compound(outer_op, lhs, c))
-      println
+      /*println("Simplifying:")
+      debug_print(Compound(outer_op, lhs, c))*/
 
       (outer_op, inner_op) match {
         // Commutative operators
-        case ("*",_) | ("+",_) => Compound(outer_op, Compound(inner_op, lhs1, rhs1), lhs)
+        case ("*",_) | ("+",_) =>
+          (false,Compound(outer_op, Compound(inner_op, lhs1, rhs1), lhs))
 
         // a - (b - c) => (a - b) + c
-        case ("-", "-") => Compound("+", simplify(Compound("-", lhs, lhs1)), simplify(rhs1))
+        case ("-", "-") =>
+          (false,Compound("+", simplify(Compound("-", lhs, lhs1)), simplify(rhs1)))
 
         // Everything else
-        case otherwise => Compound(outer_op, lhs, c)
-//>>>>>>> simplifyStrategic
+        case otherwise => (true,Compound(outer_op, lhs, c))
       }
     }
   }
@@ -465,7 +452,8 @@ class MathCode {
     /*println("Simplifying")
     debug_print(v)
     println*/
-    simplifyCompound_wrapper(v) match {
+    //simplifyCompound_wrapper(v) match {
+    v match {
       case NumberValue(n,d) => {
         if (n == 0) {
           NumberValue(0,1)
@@ -488,31 +476,37 @@ class MathCode {
         val simp_lhs1 = simplify(lhs1)
         val simp_rhs1 = simplify(rhs1)
         val simp_rhs = simplify(rhs)
-        println("Simplifying "+outer_op+","+inner_op)
-        debug_print(v)
+        /*println("Simplifying "+outer_op+","+inner_op)
+        debug_print(v)*/
 
         (outer_op, inner_op) match {
-          case ("*", "+") | ("*", "-") => simplify(Compound(inner_op, simplify(Compound("*", simp_lhs1, simp_rhs)), simplify(Compound("*", simp_rhs1, simp_rhs))))
+          case ("*", "+") | ("*", "-") => {
+            val new_lhs = simplify(Compound("*", simp_lhs1, simp_rhs))
+            val new_rhs = simplify(Compound("*", simp_rhs1, simp_rhs))
+            /*println("new lhs, rhs:")
+            debug_print(new_lhs)
+            debug_print(new_rhs)*/
+            simplify(Compound(inner_op, new_lhs, new_rhs))
+          }
 
           case otherwise => rhs match {
-            case rhs_c:Compound => simplify_any_compound(outer_op, Compound(inner_op, lhs1, rhs1), rhs_c)
+            case rhs_c:Compound => simplify_any_compound(outer_op, Compound(inner_op, lhs1, rhs1), rhs_c, recurse=false)
             case otherwise => v
           }
         }
       }
 
+      // At this point, lhs is not a Compound
       case Compound(outer_op, lhs, Compound(inner_op, lhs1, rhs1)) => {
+        //println("Hit Compound(op, something, Compound) case")
         simplify_any_compound(outer_op, lhs, Compound(inner_op, lhs1, rhs1))
       }
-      case otherwise => v
+      case otherwise => {
+        //println("Hit otherwise case")
+        v
+      }
     }
   }
-//<<<<<<< HEAD
-      /*case otherwise => c
-    
-    }// 
-    case otherwise => v
-  }*/
   
   
   
