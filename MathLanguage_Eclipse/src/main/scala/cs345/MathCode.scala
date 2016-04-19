@@ -1623,6 +1623,7 @@ class MathCode {
         case "-" => newLhs.-(newRhs);
         case "*" => newLhs.*(newRhs);
         case "/" => newLhs./(newRhs);
+        case "^" => newLhs.*(newRhs);
       }
     }
     
