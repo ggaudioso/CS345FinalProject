@@ -1612,16 +1612,6 @@ class MathCode {
     return (compound.op :: rhsOpList).:::(lhsOpList);
   }
   
-  
-/*=======
-      case Compound(outer_op, lhs, Compound(inner_op, lhs1, rhs1)) => {
-        simplify_any_compound(outer_op, lhs, Compound(inner_op, lhs1, rhs1))
-      }
-      case otherwise => v
-    }
-  }
-   
->>>>>>> simplifyStrategic*/
   /**
    * Given a Compound, simplify all sub-Compounds which are two NumberValues.
    */
@@ -1718,55 +1708,6 @@ class MathCode {
     
     return simplify(Compound(op, newLhs, newRhs), approximate);
   }
-
-  /**
-   * Given a Compound, return a new Compound in which all unbound
-   * variables are replaced by their bindings, if such a binding
-   * exists.
-   */
-  // TODO: Is this the same as getCompoundGivenBindings? (answer: yes, merge)
-  /*def getCompoundWithBindings(compound: Compound, approximate: Boolean = false): Value = {
-    
-    // The final new lhs and rhs for this compound. These are
-    // built recursively.
-    var newLhs: Value = null
-    var newRhs: Value = null
-    var op: String = compound.op
-    
-    // If the lhs is a compound, recursively call it.
-    if (isCompound(compound.lhs)) {
-      newLhs = getCompoundWithBindings(compound.lhs.asInstanceOf[Compound], approximate)
-    }
-    // Else if lhs is a number value, don't change it.
-    else if (isNumberValue(compound.lhs)) {
-      newLhs = compound.lhs;
-    }
-    // Else it is a variable, and we can try to replace it with a binding. If
-    // it has no binding, it will not change.
-    else {
-      newLhs = variableLookupFromBinding(compound.lhs.asInstanceOf[Unbound].sym, variableMap)
-      if (approximate && isknown(compound.lhs.asInstanceOf[Unbound].sym))
-        newLhs = approx(compound.lhs.asInstanceOf[Unbound].sym)
-    }
-    
-    // If the rhs is a compound, recursively call it.
-    if (isCompound(compound.rhs)) {
-      newRhs = getCompoundWithBindings(compound.rhs.asInstanceOf[Compound],approximate)
-    }
-    // Else if rhs is a number value, don't change it.
-    else if (isNumberValue(compound.rhs)) {
-      newRhs = compound.rhs
-    }
-    // Else it is a variable, and we can try to replace it with a binding. If
-    // it has no binding, it will not change.
-    else {
-      newRhs = variableLookupFromBinding(compound.rhs.asInstanceOf[Unbound].sym, variableMap)
-      if (approximate && isknown(compound.rhs.asInstanceOf[Unbound].sym)) 
-        newRhs = approx(compound.rhs.asInstanceOf[Unbound].sym)
-    }
-    
-    return simplify(Compound(op, newLhs, newRhs),approximate);
-  }*/
 
   // Returns the LCM of a and b
   //def lcm(a:Int, b:Int):Int = a*b / gcd(a,b);
