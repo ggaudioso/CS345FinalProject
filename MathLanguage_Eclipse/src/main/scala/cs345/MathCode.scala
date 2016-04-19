@@ -456,11 +456,16 @@ class MathCode {
     def unapply(b: BigInt) = Option(b.toInt)
   }
 
+  def simplifyCompound_wrapper(v:Value):Value = v match {
+    case c:Compound => simplifyCompound(c)
+    case otherwise => v
+  }
+
   def simplify(v:Value, approximate:Boolean = false):Value = {
-    println("Simplifying")
+    /*println("Simplifying")
     debug_print(v)
-    println
-    v match {
+    println*/
+    simplifyCompound_wrapper(v) match {
       case NumberValue(n,d) => {
         if (n == 0) {
           NumberValue(0,1)
@@ -1629,6 +1634,7 @@ class MathCode {
         case "-" => compound.lhs.-(compound.rhs);
         case "*" => compound.lhs.*(compound.rhs);
         case "/" => compound.lhs./(compound.rhs);
+        case "^" => compound.lhs.^(compound.rhs);
       }
     }
     
@@ -1706,7 +1712,7 @@ class MathCode {
       }
     }
     
-    return simplify(Compound(op, newLhs, newRhs), approximate);
+    return Compound(op, newLhs, newRhs);
   }
 
   // Returns the LCM of a and b
