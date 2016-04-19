@@ -452,8 +452,8 @@ class MathCode {
     /*println("Simplifying")
     debug_print(v)
     println*/
-    //simplifyCompound_wrapper(v) match {
-    v match {
+    simplifyCompound_wrapper(v) match {
+    //v match {
       case NumberValue(n,d) => {
         if (n == 0) {
           NumberValue(0,1)
