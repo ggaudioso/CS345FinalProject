@@ -13,6 +13,8 @@ class MathCode {
     def * (rhs: Value):Value
     def / (rhs: Value):Value
     def ^ (rhs: Value):Value
+    def unary_-(): Value = Compound("-", 0, this)
+    def unary_+(): Value = this
     def OVER (rhs: Value):Value
   }
   
@@ -20,10 +22,10 @@ class MathCode {
   //***************************************************************************
   //* TYPES IN OUR LANGUAGE AND THEIR OPERATORS:
   //***************************************************************************
-  
+
   // "numbers" - Rational, bigint, bigdecimal, whatever. But an actual, known number.
   // Namely, a known number that isn't irrational
-  case class NumberValue(num:BigInt, den:BigInt) extends Value {
+  case class NumberValue(val num:BigInt, val den:BigInt) extends Value {
     def + (rhs: Value):Value = rhs match {
       case NumberValue(num2,den2) => simplify(NumberValue(num*den2 + num2*den,den*den2))
       case Unbound(sym) => simplify(Compound("+", this, sym))
@@ -46,7 +48,7 @@ class MathCode {
         if (den2==1) 
           NumberValue(num.pow(num2.toInt), den.pow(den2.toInt))
         else
-          simplify(Compound("^",NumberValue(num.pow(num2.toInt), den.pow(num2.toInt)), NumberValue(1,den2)))
+          Compound("^",NumberValue(num.pow(num2.toInt), den.pow(num2.toInt)), NumberValue(1,den2))
       }
       case otherwise => simplify(Compound("^", this, rhs))
     }
@@ -66,19 +68,9 @@ class MathCode {
     
     }
   }
-  implicit def Int2Value(x:Int):NumberValue = NumberValue(x,1)
-  implicit def Double2Value(x:Double):Value = {
-    var decimals = (x.toString).length - (x.toString).indexOf('.') -1
-    decimals = min(decimals, 4) //higher precision might cause overflow in operations :(
-    val digits = pow(10,decimals)
-    val num = (x*digits).toInt
-    val den = digits.toInt
-    simplify(NumberValue(num,den))
-  }
-
   
   //unbound variables
-  case class Unbound(sym:Symbol) extends Value {
+  case class Unbound(val sym:Symbol) extends Value {
     def + (rhs: Value): Value = simplify(Compound("+",this, rhs))
     def - (rhs: Value): Value = simplify(Compound("-",this, rhs))
     def * (rhs: Value): Value = simplify(Compound("*",this, rhs))
@@ -92,7 +84,7 @@ class MathCode {
 
    
   //expressions with unbound variables 
-  case class Compound(op: String, lhs: Value, rhs: Value) extends Value {
+  case class Compound(val op: String, val lhs: Value, val rhs: Value) extends Value {
     def + (rhs: Value): Value = simplify(Compound("+", this, rhs))
     def - (rhs: Value): Value = simplify(Compound("-", this, rhs))
     def * (rhs: Value): Value = simplify(Compound("*", this, rhs))
@@ -130,24 +122,55 @@ class MathCode {
     def ^ (rhs: Value): Value = null;
     def OVER (rhs: Value): Value = null;
   }
-  
-  
-  //unary minus
-  def neg(rhs:Value):Value = Compound("-",0,rhs)
 
+  //***************************************************************************
+  //* IMPLICITS:
+  //***************************************************************************
+  implicit def Int2Value(x:Int):NumberValue = NumberValue(x,1)
+  implicit def Double2Value(x:Double):Value = {
+    var decimals = (x.toString).length - (x.toString).indexOf('.') -1
+    decimals = min(decimals, 4) //higher precision might cause overflow in operations :(
+    val digits = pow(10,decimals)
+    val num = (x*digits).toInt
+    val den = digits.toInt
+    simplify(NumberValue(num,den))
+  }
+  implicit class Int2NV(v:Int) {
+    def + (rhs: Symbol): Value = NumberValue(v, 1) + Unbound(rhs)
+    def - (rhs: Symbol): Value = NumberValue(v, 1) - Unbound(rhs)
+    def * (rhs: Symbol): Value = NumberValue(v, 1) * Unbound(rhs)
+    def / (rhs: Symbol): Value = NumberValue(v, 1) / Unbound(rhs)
+    def ^ (rhs: Symbol): Value = NumberValue(v, 1) ^ Unbound(rhs)
+  }
+
+  implicit def symbolToVariable(variableName:Symbol):Variable = Variable(variableName)
+  implicit def symbolToAppliable(symbolicName:Symbol):Function = Function(symbolicName)
+  implicit def symbolToFunctionRegistration(symbolicName:Symbol):FunctionRegistration = FunctionRegistration(symbolicName)
   
-  
+  // The reason we implicitly cast symbols to Unbounds instead of Values, is so that we can defer symbol lookup until
+  // we actually need it.
+  implicit def symbolToUnbound(symbol:Symbol):Unbound = Unbound(symbol)
+
+  /*implicit def variableLookup(sym:Symbol):Value = scope.get(sym) match {
+    case Some(value) => value
+    case None => Unbound(sym)
+  }*/
+
   //***************************************************************************
   //* INSTRUCTIONS IN OUR LANGUAGE:
   //***************************************************************************
   
   case class Variable(variableName:Symbol) {
-    def :=(value:Value) = {
-      scope += (variableName -> value)
+    def :=(value:Value) : Unit= {
+      if((variableMap contains variableName) || (functionMap contains variableName)) {
+        println(variableName)
+        throw new Exception("Redefinition is not allowed!")
+      }
+      variableMap += (variableName -> value)
     }
   }
   
-  implicit def symbolToVariable(variableName:Symbol):Variable = Variable(variableName)
+  //implicit def symbolToVariable(variableName:Symbol):Variable = Variable(variableName)
   
   val operators : String = "+-*/^" //add more if needed later
   val precedence = Array(4,4,3,3,2) //let's all stick to https://en.wikipedia.org/wiki/Order_of_operations
@@ -189,27 +212,6 @@ class MathCode {
           print("(")
           PRINT(rhs,approximate)
           print(")")
-        }
-        else 
-          PRINT(rhs,approximate)
-        return
-      }
-      var parlhs = false 
-      var parrhs = false
-      lhs match {
-        case Compound(lop,llhs,lrhs) => {
-          if (precedence(operators.indexOf(lop)) > precedence(operators.indexOf(op))) 
-            parlhs = true
-        }
-        case _ => parlhs = false
-      }
-      rhs match {
-        case Compound(rop,rlhs,rrhs) => {
-          if (precedence(operators.indexOf(rop)) > precedence(operators.indexOf(op)))
-            parrhs = true
-        }
-        case _ => parrhs = false
-      }
       if (parlhs) print("(")
       PRINT(lhs,approximate)
       if (parlhs) print(")")
@@ -221,16 +223,88 @@ class MathCode {
       
     }
   }
+  case class Function(val applier:Symbol) {
+    def apply(arguments:Value*): Value  = {
+      functionMap.get(applier) match {
+        case Some(implementation) => implementation.getValueFromArguments(arguments)
+        case None => {
+          /* We could try and implement implied multiplication here */
+          throw new Exception("We do not allow implied multiplication!")
+        }
+      }
+    }
+  }
   
-  def PRINTLN_USE_BINDINGS(value:Value) = PRINTLN_EVALUATE(value)
+  case class FunctionRegistration(functionName:Symbol) {
+    case class Inner(parameters:Symbol*) {
+      def :=(expression:Value) {
+        for (parameter <- parameters) {
+          if((variableMap contains functionName) || (functionMap contains functionName))
+            throw new Exception("Redefinition is now allowed!")
+        }
+        ensureValueOnlyContainsUnboundWithSymbolicNames(expression, parameters)
+        functionMap += (functionName -> new FunctionImplementation(parameters, expression))
+      }
+    }
+    def of(parameters:Symbol*) = Inner(parameters : _*)
+  } 
+  
+  case class FunctionImplementation(val parameters:Seq[Symbol], val expression:Value) {
+    def getValueFromArguments(values:Seq[Value]) : Value = {
+      if (values.length != parameters.length)
+        throw new Exception("Incorrect number of arguments")
+      
+      var bindings:Map[Symbol, Value] = Map()
+      // First we need to evaluate the arguments
+      for (i <- 0 to (parameters.length - 1)) {
+        var value = values(i)
+        var parameter = parameters{i}
+        var argument : Value = value match {
+          case nv:NumberValue => nv
+          case Unbound(symbol) => variableLookupFromBinding(symbol, variableMap)
+          case compound:Compound => simplify(getCompoundGivenBinding(compound, false, variableMap))
+        }
+
+        bindings += (parameter -> argument)
+      }
+      return expression match {
+        case nv:NumberValue => nv
+        case umbound:Unbound => variableLookupFromBinding(umbound.sym, bindings)
+        case compound:Compound => getCompoundGivenBinding(compound, false, bindings)
+      }
+    }
+  }
+  
+  //***************************************************************************
+  //* PRINTING:
+  //***************************************************************************
+  
+  //PRINTLN syntax: PRINTLN(whatever)
+  def PRINTLN(value: Value): Unit =  {
+    PRINT(value)
+    println()
+  }
+  
+  //PRINT syntax: PRINT(whatever)
+  def PRINT(value: Value): Unit = value match {
+    case numberValue:NumberValue => printNumberValue(numberValue)
+    case unbound:Unbound => printUnbound(unbound)
+    case compound:Compound => printCompoundUsingFunction(compound, PRINT)
+  }
   
   // PRINTLN_EVALUATES syntax: PRINTLN(whatever).. and evaluates the whatever exactly
   def PRINTLN_EVALUATE(value: Value): Unit = value match {
     case NumberValue(n,d) => println(n+"/"+d)
     case Unbound(sym) => println(sym) 
-    case Compound(op,lhs,rhs) => {
+//<<<<<<< HEAD
+    /*case Compound(op,lhs,rhs) => {
       PRINT(getCompoundWithBindings(value.asInstanceOf[Compound]))
-      println();
+      println();*/
+//=======
+    case compound:Compound => {
+      PRINT(getCompoundGivenBinding(compound, false, variableMap))
+      println
+//>>>>>>> simplifyStrategic
     }
   }
   
@@ -238,57 +312,102 @@ class MathCode {
   def PRINTLN_APPROXIMATE(value: Value): Unit = value match {
     case NumberValue(n,d) => println(n.toDouble/d.toDouble)
     case Unbound(sym) => if (isknown(sym)) println(approx(sym)) else println(sym) 
-    case Compound(op,lhs,rhs) => {
-      PRINTLN(getCompoundWithBindings(value.asInstanceOf[Compound],true),true)
+    case compound:Compound => {
+      PRINTLN(getCompoundGivenBinding(compound, true, variableMap))
     }
   }
   
+  def printWithUnevaluatedUnbounds(value:Value): Unit = value match {
+    case numberValue:NumberValue => printNumberValue(numberValue)
+    case unbound:Unbound => print(unbound.sym)
+    case compound:Compound => printCompoundUsingFunction(compound, printWithUnevaluatedUnbounds(_))
+  }
   
+//<<<<<<< HEAD
   // PRINTSTRING syntax: PRINTSTRING(myString: String)
   def PRINTSTRING(value : String): Unit = println(value)
+//=======
+  def printNumberValue(numberValue:NumberValue) : Unit = {
+    if (numberValue.den == 1)
+      print(numberValue.num)
+    else
+      print(numberValue.num + "/" + numberValue.den)
+  }
+//>>>>>>> simplifyStrategic
   
+  def printUnbound(unbound:Unbound) : Unit = {
+    if (variableMap contains unbound.sym)
+      PRINT(variableMap(unbound.sym))
+    else if (functionMap contains unbound.sym)
+      printFunction(unbound.sym, functionMap(unbound.sym))
+    else
+      print(unbound.sym)
+  }
   
+  def printCompoundUsingFunction(compound:Compound, function:(Value) => Unit) : Unit = {
+    print("(")
+    function(compound.lhs)
+    print(" " + compound.op + " ")
+    function(compound.rhs)
+    print(")")
+  }
+  
+  def printFunction(functionName:Symbol, functionImplementation:FunctionImplementation) : Unit = {
+    print("Function " + functionName.toString() + " takes in " + functionImplementation.parameters)
+    print(" and is defined as ")
+    printWithUnevaluatedUnbounds(functionImplementation.expression)
+  }
   
  //*****************************************************************
  //* STUFF TO DEAL WITH VARIABLES:
  //*****************************************************************  
   
   //bindings of variables stored here:
-  var scope:Map[Symbol,Value] = Map()
+  var variableMap:Map[Symbol,Value] = Map()
+  var functionMap:Map[Symbol, FunctionImplementation] = Map()
   
   //known values such as pi, e .. can add more
   //if we increase precision, increase precision of these as well.. but not too much or operations with lots of these wil overflow and mess up
-  var knownscope:Map[Symbol,Double] = Map(('e,2.7182), ('pi,3.1415))
-  
-  //look up a variable in our bindings
-  implicit def variableLookup(sym:Symbol):Value = scope.get(sym) match {
-    case Some(value) => value
-    case None => Unbound(sym)
-  }
+  var knownVariables:Map[Symbol,Double] = Map(('e,2.7182), ('pi,3.1415))
   
   //checks if symbol is known
   def isknown(sym:Symbol): Boolean = {
-    knownscope.contains(sym)
+    knownVariables.contains(sym)
   }
     
   //returns approximation of known symbols
-  def approx(sym:Symbol): Double = knownscope.get(sym) match {
+  def approx(sym:Symbol): Double = knownVariables.get(sym) match {
     case Some(value) => value
     case None => 0.0 //your risk if you call on unknown symbol
   }
   
-  
-
+  //look up a variable given the binding
+  def variableLookupFromBinding(sym:Symbol, binding:Map[Symbol, Value]):Value = {
+    binding.get(sym) match {
+      case Some(value) => value
+      case None => Unbound(sym)
+    }
+  }
   
   //***************************************************************************
   //* HELPER METHODS.
   //***************************************************************************
   
-  def simplify(v:Value, approximate:Boolean = false):Value = v match {
-    case NumberValue(n,d) => {
-      val g = gcd(n,d)
-      NumberValue(n / g, d / g)
+  def debug_print(v:Value, depth:Int = 0):Unit = v match {
+    case NumberValue(n,d) => print("NV("+n+","+d+")")
+    case Compound(op, lhs, rhs) => {
+      print("("+op+" ")
+      debug_print(lhs, depth+3)
+      println()
+      var i = 0
+      for (i <- 0 to depth+2) {
+        print(" ")
+      }
+      debug_print(rhs, depth+3)
+      print(")")
+      if (depth == 0) println()
     }
+/*<<<<<<< HEAD
     
     
     // Mike: Added:
@@ -308,44 +427,87 @@ class MathCode {
           }
           case otherwise => c
         }
-      }
-      case "*" => {
-        // See whether lhs and rhs are both NVs
-        // Also, if one is an addition/subtraction then we can/should distribute
-        c.lhs match {
-          case lhs_nv:NumberValue => c.rhs match {
-            case rhs_nv:NumberValue => lhs_nv * rhs_nv
-            case otherwise => c
-          }
-          case otherwise => c
-        }
-      }
-      case "/" => {
-        c.lhs match {
-          case lhs_nv:NumberValue => c.rhs match {
-            case rhs_nv:NumberValue => lhs_nv / rhs_nv
-            case otherwise => c
-          }
-          case otherwise => c
-        }
-      }
-      case "^" => {
-        if (approximate) {
-          c.lhs match {
-          case lhs_nv:NumberValue => c.rhs match {
-            case rhs_nv:NumberValue => pow(lhs_nv.num.toDouble/lhs_nv.den.toDouble, rhs_nv.num.toDouble/rhs_nv.den.toDouble)
-            case otherwise => c
-          }
-          case otherwise => c
-        }
-        }
-        else c
-      }
-      case otherwise => c
-    
-    }// */
-    case otherwise => v
+=======*/
+    case Unbound(s) => print(s.toString)
   }
+
+  def simplify_any_compound(outer_op:String, lhs:Value, c:Compound):Value = c match {
+    case Compound(inner_op, lhs1, rhs1) => {
+      println("Simplifying:")
+      debug_print(Compound(outer_op, lhs, c))
+      println
+
+      (outer_op, inner_op) match {
+        // Commutative operators
+        case ("*",_) | ("+",_) => Compound(outer_op, Compound(inner_op, lhs1, rhs1), lhs)
+
+        // a - (b - c) => (a - b) + c
+        case ("-", "-") => Compound("+", simplify(Compound("-", lhs, lhs1)), simplify(rhs1))
+
+        // Everything else
+        case otherwise => Compound(outer_op, lhs, c)
+//>>>>>>> simplifyStrategic
+      }
+    }
+  }
+
+  // From StackOverflow, so that we can pattern-match BigInts
+  object IntBig {
+    def unapply(b: BigInt) = Option(b.toInt)
+  }
+
+  def simplify(v:Value, approximate:Boolean = false):Value = {
+    println("Simplifying")
+    debug_print(v)
+    println
+    v match {
+      case NumberValue(n,d) => {
+        if (n == 0) {
+          NumberValue(0,1)
+        } else {
+          val g = gcd(n,d)
+          NumberValue(n / g, d / g)
+        }
+      }
+      case Compound(op, lhs:NumberValue, rhs:NumberValue) => op match {
+        case "+" => lhs + rhs
+        case "-" => lhs - rhs
+        case "*" => lhs * rhs
+        case "/" => lhs / rhs
+        case "^" => lhs ^ rhs
+      }
+      case Compound("^", NumberValue(IntBig(1),IntBig(1)), rhs) => {
+        NumberValue(1,1)
+      }
+      case Compound(outer_op, Compound(inner_op, lhs1, rhs1), rhs) => {
+        val simp_lhs1 = simplify(lhs1)
+        val simp_rhs1 = simplify(rhs1)
+        val simp_rhs = simplify(rhs)
+        println("Simplifying "+outer_op+","+inner_op)
+        debug_print(v)
+
+        (outer_op, inner_op) match {
+          case ("*", "+") | ("*", "-") => simplify(Compound(inner_op, simplify(Compound("*", simp_lhs1, simp_rhs)), simplify(Compound("*", simp_rhs1, simp_rhs))))
+
+          case otherwise => rhs match {
+            case rhs_c:Compound => simplify_any_compound(outer_op, Compound(inner_op, lhs1, rhs1), rhs_c)
+            case otherwise => v
+          }
+        }
+      }
+
+      case Compound(outer_op, lhs, Compound(inner_op, lhs1, rhs1)) => {
+        simplify_any_compound(outer_op, lhs, Compound(inner_op, lhs1, rhs1))
+      }
+      case otherwise => v
+    }
+  }
+//<<<<<<< HEAD
+      /*case otherwise => c
+    
+    }// 
+    case otherwise => v
+  }*/
   
   
   
@@ -544,7 +706,7 @@ class MathCode {
   def simplifyCompoundtoCompoundCluster(compound: Compound, approximate: Boolean = false): Value = {
     
     // Replace all variables by their bindings.
-    var tempValue: Value = getCompoundWithBindings(compound, approximate);
+    var tempValue: Value = getCompoundGivenBinding(compound, approximate, variableMap);
     
     // If the result is not a Compound, then return it. It could be a
     // NumberValue or an Unbound, for example.
@@ -586,7 +748,7 @@ class MathCode {
   def simplifyCompound(compound: Compound, approximate: Boolean = false): Value = {
     
     // Replace all variables by their bindings.
-    var tempValue: Value = getCompoundWithBindings(compound, approximate);
+    var tempValue: Value = getCompoundGivenBinding(compound, approximate, variableMap);
     
     // If the result is not a Compound, then return it. It could be a
     // NumberValue or an Unbound, for example.
@@ -1451,6 +1613,15 @@ class MathCode {
   }
   
   
+/*=======
+      case Compound(outer_op, lhs, Compound(inner_op, lhs1, rhs1)) => {
+        simplify_any_compound(outer_op, lhs, Compound(inner_op, lhs1, rhs1))
+      }
+      case otherwise => v
+    }
+  }
+   
+>>>>>>> simplifyStrategic*/
   /**
    * Given a Compound, simplify all sub-Compounds which are two NumberValues.
    */
@@ -1511,11 +1682,50 @@ class MathCode {
   
 
   /**
+   * Given a Compound and a Binding, return a new Compound in which all unbound
+   * variables are replaced by their bindings, if such a binding
+   * exists.
+   */
+  def getCompoundGivenBinding(compound: Compound, approximate: Boolean = false, binding:Map[Symbol, Value]): Value = {
+    
+    // The final new lhs and rhs for this compound. These are
+    // built recursively.
+    var newLhs: Value = null
+    var newRhs: Value = null
+    var op: String = compound.op
+    
+    newLhs = compound.lhs match {
+      case compound:Compound => getCompoundGivenBinding(compound, approximate, binding)
+      case numberValue:NumberValue => numberValue
+      case Unbound(unboundSymbol) => {
+        if (approximate && isknown(unboundSymbol))
+          approx(unboundSymbol)
+        else
+          variableLookupFromBinding(unboundSymbol, binding)
+      }
+    }
+    
+    newRhs = compound.rhs match {
+      case compound:Compound => getCompoundGivenBinding(compound, approximate, binding)
+      case numberValue:NumberValue => numberValue
+      case Unbound(unboundSymbol) => {
+        if (approximate && isknown(unboundSymbol))
+          approx(unboundSymbol)
+        else
+          variableLookupFromBinding(unboundSymbol, binding)
+      }
+    }
+    
+    return simplify(Compound(op, newLhs, newRhs), approximate);
+  }
+
+  /**
    * Given a Compound, return a new Compound in which all unbound
    * variables are replaced by their bindings, if such a binding
    * exists.
    */
-  def getCompoundWithBindings(compound: Compound, approximate: Boolean = false): Value = {
+  // TODO: Is this the same as getCompoundGivenBindings? (answer: yes, merge)
+  /*def getCompoundWithBindings(compound: Compound, approximate: Boolean = false): Value = {
     
     // The final new lhs and rhs for this compound. These are
     // built recursively.
@@ -1534,7 +1744,7 @@ class MathCode {
     // Else it is a variable, and we can try to replace it with a binding. If
     // it has no binding, it will not change.
     else {
-      newLhs = variableLookup(compound.lhs.asInstanceOf[Unbound].sym)
+      newLhs = variableLookupFromBinding(compound.lhs.asInstanceOf[Unbound].sym, variableMap)
       if (approximate && isknown(compound.lhs.asInstanceOf[Unbound].sym))
         newLhs = approx(compound.lhs.asInstanceOf[Unbound].sym)
     }
@@ -1550,13 +1760,13 @@ class MathCode {
     // Else it is a variable, and we can try to replace it with a binding. If
     // it has no binding, it will not change.
     else {
-      newRhs = variableLookup(compound.rhs.asInstanceOf[Unbound].sym)
+      newRhs = variableLookupFromBinding(compound.rhs.asInstanceOf[Unbound].sym, variableMap)
       if (approximate && isknown(compound.rhs.asInstanceOf[Unbound].sym)) 
         newRhs = approx(compound.rhs.asInstanceOf[Unbound].sym)
     }
     
     return simplify(Compound(op, newLhs, newRhs),approximate);
-  }
+  }*/
 
   // Returns the LCM of a and b
   //def lcm(a:Int, b:Int):Int = a*b / gcd(a,b);
@@ -1579,10 +1789,24 @@ class MathCode {
     }
   }
   
+  // For use in function bodies, to make sure there isn't anything we don't expect
+  def ensureValueOnlyContainsUnboundWithSymbolicNames(value:Value, symbolicNames:Seq[Symbol]): Unit = {
+    for (symbolicName <- symbolicNames) {
+      value match {
+        case NumberValue(_,_) => return
+        case Unbound(sym:Symbol) => {
+          if(!(symbolicNames contains symbolicName))
+            throw new Exception("You can't have any variables in a function body other than the parameter. Parameter is " + symbolicName.toString() + ", found " + sym.toString())
+        }
+        case Compound(_, lhs, rhs) => {
+          ensureValueOnlyContainsUnboundWithSymbolicNames(lhs, symbolicNames)
+          ensureValueOnlyContainsUnboundWithSymbolicNames(rhs, symbolicNames)
+        }
+      }
+    }
+  }
   
-  /**
-   * Returns true iff the given compound is made purely of NumberValues.
-   */
+  //Returns true iff the given compound is made purely of NumberValues.
   def allNumberValues(compound: Value): Boolean = compound match {
     case NumberValue(_,_) => true
     case Unbound(_) => false
@@ -1590,9 +1814,7 @@ class MathCode {
   }
 
   
-  /**
-   * Returns true iff the given Value is of type NumberValue
-   */
+  //Returns true iff the given Value is of type NumberValue
   def isNumberValue(value: Value): Boolean = value match {
     case NumberValue(n,d) => true
     case otherwise => false
@@ -1611,9 +1833,7 @@ class MathCode {
   }
   
   
-  /**
-   * Returns true iff the given Value is of type Compound.
-   */
+  //Returns true iff the given Value is of type Compound.
   def isCompound(value: Value): Boolean = value match {
     case c: Compound => true
     case otherwise => false
@@ -1636,12 +1856,9 @@ class MathCode {
     case otherwise => false
   }
   
-  
   //gets symbol out of unbound
   def getSym(value: Value): Symbol = value match {
     case Unbound(s) => s
     case otherwise => 'youwrong //your risk to call this on st that is not unbound
   }
-  
 }
-

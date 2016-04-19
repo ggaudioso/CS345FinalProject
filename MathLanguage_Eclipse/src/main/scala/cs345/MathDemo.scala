@@ -1,20 +1,13 @@
 
 object MathDemo extends MathCode{
   def main(args: Array[String]):Unit = {  
+    'b := 3 + 6 * 5 / 3
     
+    'x := -'b + 6 * 7 / 6 * 3
     
-    PRINTLN_APPROXIMATE('pi)
-    PRINTLN_APPROXIMATE('pi+3)
-    PRINTLN_EVALUATE('pi+3)
+    'f of 'x := -('x + 2)
     
-    'x := 'pi * 2
-    PRINTLN_APPROXIMATE('x*'r)
-    println
-    PRINTLN_EVALUATE('e+'pi)
-    PRINTLN_APPROXIMATE('e+'pi)
-    println
-    PRINTLN_EVALUATE('e^'pi)
-    PRINTLN_APPROXIMATE('e^'pi)
+    'g of ('x, 'y) := 'x + 'y
     
     println
     PRINTLN_EVALUATE(1 / 3)
@@ -22,6 +15,19 @@ object MathDemo extends MathCode{
 
     println
     PRINTLN_EVALUATE((1 OVER 3) - (3 OVER 1))
+
+    println
+    'c := 4
+    'a := 'c + 3
+    PRINTLN_EVALUATE('a)
+
+    println
+    PRINTLN_EVALUATE(('d+'y)*('z+'w))
+    PRINTLN_EVALUATE(('d-'y)*('z+'w))
+    PRINTLN_EVALUATE(('d-'y)*('z-'w))
+
+    println
+    PRINTLN(1^'a)
     
 //
 //    LET('three) BE 3
@@ -82,12 +88,20 @@ object MathDemo extends MathCode{
 //    LET ('f) BE 56
 //    PRINTLN_USE_BINDINGS('g)
     
-    'x := 'a + 'b + 'c + 'd
-    PRINTLN('x)
+    //'x := 'a + 'b + 'c + 'd
+    //PRINTLN('x)
     
-    TEST
+    //TEST
+    'y := 'f('x)
+    'h := 'f(2 + 80)
+    'z := 'f('x + 5)
+    'p := 'g('f('x), 2)
     
     
- 
+    PRINTLN('b)
+    PRINTLN('y)
+    PRINTLN('h)
+    PRINTLN('z)
+    PRINTLN('p)
   }
 }
