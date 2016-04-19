@@ -151,11 +151,6 @@ class MathCode {
   // we actually need it.
   implicit def symbolToUnbound(symbol:Symbol):Unbound = Unbound(symbol)
 
-  /*implicit def variableLookup(sym:Symbol):Value = scope.get(sym) match {
-    case Some(value) => value
-    case None => Unbound(sym)
-  }*/
-
   //***************************************************************************
   //* INSTRUCTIONS IN OUR LANGUAGE:
   //***************************************************************************
@@ -169,8 +164,6 @@ class MathCode {
       variableMap += (variableName -> value)
     }
   }
-  
-  //implicit def symbolToVariable(variableName:Symbol):Variable = Variable(variableName)
   
   val operators : String = "+-*/^" //add more if needed later
   val precedence = Array(4,4,3,3,2) //let's all stick to https://en.wikipedia.org/wiki/Order_of_operations
@@ -196,32 +189,7 @@ class MathCode {
       else print(n.toDouble/d.toDouble) 
     }
     case Unbound(sym) => print((sym.toString).substring(1)) //get rid of '
-    case Compound(op,lhs,rhs) => {
-      
-      // Mike Added:
-      // This will call the Compound's toString, which turns it into a
-      // CompoundCluster, simplifies it, and prints it in CompoundCluster
-      // form (i.e., proper parentheses and grouping of terms).
-      print(value);
-      
-      // Mike Removed:
-      /*
-      if (op.equals("-") && isNumberValue(lhs) && getNum(lhs) == 0) {
-        print(op)
-        if (isCompound(rhs)) {
-          print("(")
-          PRINT(rhs,approximate)
-          print(")")
-      if (parlhs) print("(")
-      PRINT(lhs,approximate)
-      if (parlhs) print(")")
-      print(" " + op + " ")
-      if (parrhs) print("(")
-      PRINT(rhs,approximate)
-      if (parrhs) print(")")
-      */
-      
-    }
+    case Compound(op,lhs,rhs) => print(value)
   }
   case class Function(val applier:Symbol) {
     def apply(arguments:Value*): Value  = {
@@ -292,23 +260,17 @@ class MathCode {
     case compound:Compound => printCompoundUsingFunction(compound, PRINT)
   }
   
-  // PRINTLN_EVALUATES syntax: PRINTLN(whatever).. and evaluates the whatever exactly
+  // PRINTLN_EVALUATE syntax: PRINTLN_EVALUATE(whatever).. and evaluates the whatever exactly
   def PRINTLN_EVALUATE(value: Value): Unit = value match {
     case NumberValue(n,d) => println(n+"/"+d)
     case Unbound(sym) => println(sym) 
-//<<<<<<< HEAD
-    /*case Compound(op,lhs,rhs) => {
-      PRINT(getCompoundWithBindings(value.asInstanceOf[Compound]))
-      println();*/
-//=======
     case compound:Compound => {
       PRINT(getCompoundGivenBinding(compound, false, variableMap))
       println
-//>>>>>>> simplifyStrategic
     }
   }
   
-    // PRINTLN_APPROXIMATE syntax: PRINTLN(whatever).. and evaluates the whatever exactly
+  // PRINTLN_APPROXIMATE syntax: PRINTLN(whatever).. and evaluates the whatever exactly
   def PRINTLN_APPROXIMATE(value: Value): Unit = value match {
     case NumberValue(n,d) => println(n.toDouble/d.toDouble)
     case Unbound(sym) => if (isknown(sym)) println(approx(sym)) else println(sym) 
@@ -323,17 +285,15 @@ class MathCode {
     case compound:Compound => printCompoundUsingFunction(compound, printWithUnevaluatedUnbounds(_))
   }
   
-//<<<<<<< HEAD
   // PRINTSTRING syntax: PRINTSTRING(myString: String)
   def PRINTSTRING(value : String): Unit = println(value)
-//=======
+  
   def printNumberValue(numberValue:NumberValue) : Unit = {
     if (numberValue.den == 1)
       print(numberValue.num)
     else
       print(numberValue.num + "/" + numberValue.den)
   }
-//>>>>>>> simplifyStrategic
   
   def printUnbound(unbound:Unbound) : Unit = {
     if (variableMap contains unbound.sym)
