@@ -98,11 +98,12 @@ object MathDemo extends MathCode{
     'z := 'f('x + 5)
     'p := 'g('f('x), 2)
     
-    
     PRINTLN('b)
     PRINTLN('y)
     PRINTLN('h)
     PRINTLN('z)
     PRINTLN('p)
+    println
+    PRINTLN('f('w))
   }
 }
