@@ -242,6 +242,19 @@ class MathCode {
       }
     }
   }
+
+  def DERIVE(expr:Value, wrt:Symbol): Value = expr match {
+    case NumberValue(_,_) => 0
+    case Unbound(sym) => if (sym == wrt) 1 else 0
+    case Compound(op, lhs, rhs) => op match {
+      case "*" => Compound("+", Compound("*", DERIVE(lhs, wrt), rhs), Compound("*", lhs, DERIVE(rhs, wrt)))
+      case "+"|"-" => Compound(op, DERIVE(lhs, wrt), DERIVE(rhs, wrt))
+      case "/" => Compound("/", Compound("-", Compound("*", DERIVE(lhs,wrt), rhs), Compound("*", lhs, DERIVE(rhs,wrt))), Compound("^", rhs, NumberValue(2,1)))
+      case "^" => rhs match {
+        case nv:NumberValue => Compound("*", nv, Compound("^", lhs, nv - 1))
+      }
+    }
+  }
   
   //***************************************************************************
   //* PRINTING:

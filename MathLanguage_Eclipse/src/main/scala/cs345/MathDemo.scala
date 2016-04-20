@@ -104,5 +104,12 @@ object MathDemo extends MathCode{
     PRINTLN('h)
     PRINTLN('z)
     PRINTLN('p)
+
+    println
+    PRINTLN(DERIVE('w + (5*'w^3), 'w))
+    PRINTLN(DERIVE('w + 5*'w^3, 'w))
+    PRINTLN('w + 5*'w^3)
+    PRINTLN('x)
+    PRINTLN('x + 5*'x^3)
   }
 }
