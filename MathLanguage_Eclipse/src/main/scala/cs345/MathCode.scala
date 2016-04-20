@@ -648,7 +648,7 @@ class MathCode {
     
     println("------\n\n");
     
-    println(flattenCompoundToString(compoundClusterToCompound(simplifyGroups(group7).asInstanceOf[CompoundCluster])));
+    //println(flattenCompoundToString(compoundClusterToCompound(simplifyGroups(group7).asInstanceOf[CompoundCluster])));
     
     // Should be: (1 ^ z)
     println(simplifyGroups(group11));
@@ -1497,138 +1497,25 @@ class MathCode {
     return returnString;
   }
   
-  
-  /**
-   * Flatten the given Compound to a fully-parenthesized String.
-   */
-  def flattenCompoundToString(compound: Compound): String = {
-    
-    // Base case: neither the LHS or RHS are compounds. Thus, this
-    // is a leaf compound.
-    if (!isCompound(compound.lhs) && !isCompound(compound.rhs)) {
-      return "(" + compound.lhs.toString() + " " + compound.op + " " + compound.rhs.toString() + ")";
-    }
-    
-    // Either the LHS or the RHS (or both) are Compounds. Get their strings
-    // recursively. Note that compounds are left-associative.
-    var lhsString: String = "";
-    var rhsString: String = "";
-    
-    // If LHS is compound, get its string.
-    if (isCompound(compound.lhs)) {
-      lhsString = flattenCompoundToString(compound.lhs.asInstanceOf[Compound]);
-    }
-    // Else, it's not a compound, get it's string with its toString method.
-    else {
-      // Note: for now we are using the same logic as the PRINT method to get
-      // String representations for non-Compounds.
-      lhsString = compound.lhs.toString();
-    }
-    
-    // If RHS is compound, get its string.
-    if (isCompound(compound.rhs)) {
-      rhsString = flattenCompoundToString(compound.rhs.asInstanceOf[Compound]);
-    }
-    // Else, it's not a compound, get it's string with its toString method.
-    else {
-      // Note: for now we are using the same logic as the PRINT method to get
-      // String representations for non-Compounds.
-      rhsString = compound.rhs.toString();
-    }
-    
-    return "(" + lhsString + " " + compound.op + " " + rhsString + ")";
-  }
-  
-  
-  /**
-   * Return a list of operators in this Compound, in the order which
-   * they would be laid out in the expression this Compound represents.
-   */
-  def getOperatorsList(compound: Compound): List[String] = {
-    
-    // If this compound has no sub-compounds, then add it's operator
-    // to our list and we're done.
-    if (!isCompound(compound.lhs) && !isCompound(compound.rhs)) {
-      
-      return List(compound.op);
-    }
-    
-    var lhsOpList: List[String] = List();
-    var rhsOpList: List[String] = List();
-    
-    // Get operator list from left compound, if it is a compound.
-    if (isCompound(compound.lhs)) {
-      lhsOpList = getOperatorsList(compound.lhs.asInstanceOf[Compound]);
-    }
-
-    
-    // Get operator list from right compound, if it is a compound.
-    if (isCompound(compound.rhs)) {
-      rhsOpList = getOperatorsList(compound.rhs.asInstanceOf[Compound]);
-    }
-    
-    // We want (lhsOpList, current compound operator, rhsOpList).
-    return (compound.op :: rhsOpList).:::(lhsOpList);
-  }
-  
   /**
    * Given a Compound, simplify all sub-Compounds which are two NumberValues.
    */
-  def simplifyCompoundNumberValuePairs(compound: Compound): Value = {
-    
-    //println("GIVEN COMPOUND: " + compound);
-    
-    // Base case: both lhs and rhs are number values.
-    if (isNumberValue(compound.lhs) && isNumberValue(compound.rhs)) {
-      
-      //println("DOING: " + compound.op + ", " + compound.lhs + ", " + compound.rhs);
-      
-      return compound.op match {
-        case "+" => compound.lhs.+(compound.rhs);
-        case "-" => compound.lhs.-(compound.rhs);
-        case "*" => compound.lhs.*(compound.rhs);
-        case "/" => compound.lhs./(compound.rhs);
-        case "^" => compound.lhs.^(compound.rhs);
-      }
+  def simplifyCompoundNumberValuePairs(compound: Compound): Value = (compound.lhs, compound.rhs) match {
+    case (nv1:NumberValue, nv2:NumberValue) => compound.op match {
+      case "+" => nv1 + nv2
+      case "-" => nv1 - nv2
+      case "*" => nv1 * nv2
+      case "/" => nv1 / nv2
+      case "^" => nv1 ^ nv2
     }
-    
-    // We will try to simplify the lhs and the rhs as much as we can.
-    var newLhs = compound.lhs;
-    var newRhs = compound.rhs;
-    
-    //println("OP:  " + compound.op);
-    //println("LHS: " + compound.lhs);
-    //println("RHS: " + compound.rhs);
-    
-    // If the lhs is a compound, try to simplify it.
-    if (isCompound(compound.lhs)) {
-      newLhs = simplifyCompoundNumberValuePairs(compound.lhs.asInstanceOf[Compound]);
-    }
-    
-    // If the rhs is a compound, try to simplify it.
-    if (isCompound(compound.rhs)) {
-      newRhs = simplifyCompoundNumberValuePairs(compound.rhs.asInstanceOf[Compound]);
-    }
-    
-    //println("NEW LHS: " + newLhs);
-    //println("NEW RHS: " + newRhs);
-    
-    // Once simplified, if both are number values, then we can return a number value.
-    if (isNumberValue(newLhs) && isNumberValue(newRhs)) {
-      
-      //println("DOING: " + compound.op + ", " + newLhs + ", " + newRhs);
-      
-      return compound.op match {
-        case "+" => newLhs.+(newRhs);
-        case "-" => newLhs.-(newRhs);
-        case "*" => newLhs.*(newRhs);
-        case "/" => newLhs./(newRhs);
-        case "^" => newLhs.*(newRhs);
-      }
-    }
-    
-    // They are not both number values, so return a compound.
-    return Compound(compound.op, newLhs, newRhs);
+
+    case (c1:Compound, c2:Compound) =>
+      Compound(compound.op, simplifyCompoundNumberValuePairs(c1), simplifyCompoundNumberValuePairs(c2))
+    case (c1:Compound, rhs) =>
+      Compound(compound.op, simplifyCompoundNumberValuePairs(c1), rhs)
+    case (lhs, c2:Compound) =>
+      Compound(compound.op, lhs, simplifyCompoundNumberValuePairs(c2))
+    case otherwise => compound
   }
   
 
