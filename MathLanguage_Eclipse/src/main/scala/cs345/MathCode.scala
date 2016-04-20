@@ -27,21 +27,21 @@ class MathCode {
   // Namely, a known number that isn't irrational
   case class NumberValue(val num:BigInt, val den:BigInt) extends Value {
     def + (rhs: Value):Value = rhs match {
-      case NumberValue(num2,den2) => simplify(NumberValue(num*den2 + num2*den,den*den2))
-      case Unbound(sym) => simplify(Compound("+", this, sym))
-      case c:Compound => simplify(Compound("+", this, c))
+      case NumberValue(num2,den2) => NumberValue(num*den2 + num2*den,den*den2)
+      case Unbound(sym) => Compound("+", this, sym)
+      case c:Compound => Compound("+", this, c)
     }
     def - (rhs: Value):Value = rhs match {
-      case NumberValue(num2,den2) => simplify(this + NumberValue(-num2, den2))
-      case otherwise => simplify(Compound("-", this, rhs))
+      case NumberValue(num2,den2) => this + NumberValue(-num2, den2)
+      case otherwise => Compound("-", this, rhs)
     }
     def * (rhs: Value):Value = rhs match {
-      case NumberValue(num2,den2) => simplify(NumberValue(num2*num, den2*den))
-      case otherwise => simplify(Compound("*", this, rhs))
+      case NumberValue(num2,den2) => NumberValue(num2*num, den2*den)
+      case otherwise => Compound("*", this, rhs)
     }
     def / (rhs: Value):Value = rhs match {
-      case NumberValue(num2,den2) => simplify(NumberValue(num*den2, num2*den))
-      case otherwise => simplify(Compound("/", this, rhs))
+      case NumberValue(num2,den2) => NumberValue(num*den2, num2*den)
+      case otherwise => Compound("/", this, rhs)
     }
     def ^ (rhs: Value):Value = rhs match {
       case NumberValue(num2,den2) => {
@@ -50,33 +50,30 @@ class MathCode {
         else
           Compound("^",NumberValue(num.pow(num2.toInt), den.pow(num2.toInt)), NumberValue(1,den2))
       }
-      case otherwise => simplify(Compound("^", this, rhs))
+      case otherwise => Compound("^", this, rhs)
     }
     def OVER (rhs: Value):Value = rhs match {
       case NumberValue(num2,den2) => NumberValue(num*den2, den*num2)
-      case otherwise => simplify(Compound("/", this, rhs))
+      case otherwise => Compound("/", this, rhs)
     }
     
     override def toString(): String = {
-
-       if (den == 1) {
+       if (den == 1)
          return num.toString() 
-       } 
        else {
          return (num + "/" + den).toString(); 
        }
-    
     }
   }
   
   //unbound variables
   case class Unbound(val sym:Symbol) extends Value {
-    def + (rhs: Value): Value = simplify(Compound("+",this, rhs))
-    def - (rhs: Value): Value = simplify(Compound("-",this, rhs))
-    def * (rhs: Value): Value = simplify(Compound("*",this, rhs))
-    def / (rhs: Value): Value = simplify(Compound("/",this, rhs))
-    def ^ (rhs: Value): Value = simplify(Compound("^", this, rhs))
-    def OVER (rhs: Value): Value = simplify(Compound("/", this, rhs))
+    def + (rhs: Value): Value = Compound("+",this, rhs)
+    def - (rhs: Value): Value = Compound("-",this, rhs)
+    def * (rhs: Value): Value = Compound("*",this, rhs)
+    def / (rhs: Value): Value = Compound("/",this, rhs)
+    def ^ (rhs: Value): Value = Compound("^", this, rhs)
+    def OVER (rhs: Value): Value = Compound("/", this, rhs)
     
     // Gets rid of '.
     override def toString(): String = return (sym.toString).substring(1);
@@ -85,19 +82,19 @@ class MathCode {
    
   //expressions with unbound variables 
   case class Compound(val op: String, val lhs: Value, val rhs: Value) extends Value {
-    def + (rhs: Value): Value = simplify(Compound("+", this, rhs))
-    def - (rhs: Value): Value = simplify(Compound("-", this, rhs))
-    def * (rhs: Value): Value = simplify(Compound("*", this, rhs))
-    def / (rhs: Value): Value = simplify(Compound("/", this, rhs))
-    def ^ (rhs: Value): Value = simplify(Compound("^", this, rhs))
-    def OVER (rhs: Value): Value = simplify(Compound("/", this, rhs))
+    def + (rhs: Value): Value = Compound("+", this, rhs)
+    def - (rhs: Value): Value = Compound("-", this, rhs)
+    def * (rhs: Value): Value = Compound("*", this, rhs)
+    def / (rhs: Value): Value = Compound("/", this, rhs)
+    def ^ (rhs: Value): Value = Compound("^", this, rhs)
+    def OVER (rhs: Value): Value = Compound("/", this, rhs)
     
     
     override def toString(): String = {
       
       // This will return either a NumberValue, an UnBound, or a 
       // CompoundCluster.
-      var value: Value = simplifyCompoundtoCompoundCluster(this);
+      var value: Value = simplifyCompoundtoCompoundCluster(this, false, variableMap);
       
       return value.toString();
       
@@ -133,7 +130,7 @@ class MathCode {
     val digits = pow(10,decimals)
     val num = (x*digits).toInt
     val den = digits.toInt
-    simplify(NumberValue(num,den))
+    NumberValue(num,den)
   }
   implicit class Int2NV(v:Int) {
     def + (rhs: Symbol): Value = NumberValue(v, 1) + Unbound(rhs)
@@ -161,7 +158,7 @@ class MathCode {
         println(variableName)
         throw new Exception("Redefinition is not allowed!")
       }
-      variableMap += (variableName -> value)
+      variableMap += (variableName -> simplify(value, false, variableMap))
     }
   }
   
@@ -177,7 +174,7 @@ class MathCode {
     }
     case Unbound(sym) => println(sym) 
     case Compound(op,lhs,rhs) => {
-      PRINT(simplify(value),approximate)
+      PRINT(value, approximate)
       println();
     }
   }
@@ -230,7 +227,7 @@ class MathCode {
         var argument : Value = value match {
           case nv:NumberValue => nv
           case Unbound(symbol) => variableLookupFromBinding(symbol, variableMap)
-          case compound:Compound => simplify(getCompoundGivenBinding(compound, false, variableMap))
+          case compound:Compound => simplify(getCompoundGivenBinding(compound, false, variableMap), false, variableMap)
         }
 
         bindings += (parameter -> argument)
@@ -238,7 +235,7 @@ class MathCode {
       return expression match {
         case nv:NumberValue => nv
         case umbound:Unbound => variableLookupFromBinding(umbound.sym, bindings)
-        case compound:Compound => getCompoundGivenBinding(compound, false, bindings)
+        case compound:Compound => simplify(getCompoundGivenBinding(compound, false, bindings), false, bindings)
       }
     }
   }
@@ -383,15 +380,15 @@ class MathCode {
     case Unbound(s) => print(s.toString)
   }
 
-  def simplify_any_compound(outer_op:String, lhs:Value, c:Compound, recurse:Boolean = true):Value = {
-    val x = simplify_any_compound2(outer_op, lhs, c)
+  def simplify_any_compound(outer_op:String, lhs:Value, c:Compound, recurse:Boolean, binding:Map[Symbol, Value]):Value = {
+    val x = simplify_any_compound2(outer_op, lhs, c, binding)
     if (recurse && !x._1)
-      simplify(x._2)
+      simplify(x._2, false, binding)
     else
       x._2
   }
 
-  def simplify_any_compound2(outer_op:String, lhs:Value, c:Compound):(Boolean,Value) = c match {
+  def simplify_any_compound2(outer_op:String, lhs:Value, c:Compound, binding:Map[Symbol, Value]):(Boolean,Value) = c match {
     case Compound(inner_op, lhs1, rhs1) => {
       /*println("Simplifying:")
       debug_print(Compound(outer_op, lhs, c))*/
@@ -403,7 +400,7 @@ class MathCode {
 
         // a - (b - c) => (a - b) + c
         case ("-", "-") =>
-          (false,Compound("+", simplify(Compound("-", lhs, lhs1)), simplify(rhs1)))
+          (false,Compound("+", simplify(Compound("-", lhs, lhs1), false, binding), simplify(rhs1, false, binding)))
 
         // Everything else
         case otherwise => (true,Compound(outer_op, lhs, c))
@@ -416,16 +413,16 @@ class MathCode {
     def unapply(b: BigInt) = Option(b.toInt)
   }
 
-  def simplifyCompound_wrapper(v:Value):Value = v match {
-    case c:Compound => simplifyCompound(c)
+  def simplifyCompound_wrapper(v:Value, binding:Map[Symbol, Value]):Value = v match {
+    case c:Compound => simplifyCompound(c, false, binding)
     case otherwise => v
   }
 
-  def simplify(v:Value, approximate:Boolean = false):Value = {
+  def simplify(v:Value, approximate:Boolean, binding:Map[Symbol, Value]):Value = {
     /*println("Simplifying")
     debug_print(v)
     println*/
-    simplifyCompound_wrapper(v) match {
+    simplifyCompound_wrapper(v, binding) match {
     //v match {
       case NumberValue(n,d) => {
         if (n == 0) {
@@ -446,24 +443,24 @@ class MathCode {
         NumberValue(1,1)
       }
       case Compound(outer_op, Compound(inner_op, lhs1, rhs1), rhs) => {
-        val simp_lhs1 = simplify(lhs1)
-        val simp_rhs1 = simplify(rhs1)
-        val simp_rhs = simplify(rhs)
+        val simp_lhs1 = simplify(lhs1, approximate, binding)
+        val simp_rhs1 = simplify(rhs1, approximate, binding)
+        val simp_rhs = simplify(rhs, approximate, binding)
         /*println("Simplifying "+outer_op+","+inner_op)
         debug_print(v)*/
 
         (outer_op, inner_op) match {
           case ("*", "+") | ("*", "-") => {
-            val new_lhs = simplify(Compound("*", simp_lhs1, simp_rhs))
-            val new_rhs = simplify(Compound("*", simp_rhs1, simp_rhs))
+            val new_lhs = simplify(Compound("*", simp_lhs1, simp_rhs), approximate, binding)
+            val new_rhs = simplify(Compound("*", simp_rhs1, simp_rhs), approximate, binding)
             /*println("new lhs, rhs:")
             debug_print(new_lhs)
             debug_print(new_rhs)*/
-            simplify(Compound(inner_op, new_lhs, new_rhs))
+            simplify(Compound(inner_op, new_lhs, new_rhs), approximate, binding)
           }
 
           case otherwise => rhs match {
-            case rhs_c:Compound => simplify_any_compound(outer_op, Compound(inner_op, lhs1, rhs1), rhs_c, recurse=false)
+            case rhs_c:Compound => simplify_any_compound(outer_op, Compound(inner_op, lhs1, rhs1), rhs_c, false, binding)
             case otherwise => v
           }
         }
@@ -472,7 +469,7 @@ class MathCode {
       // At this point, lhs is not a Compound
       case Compound(outer_op, lhs, Compound(inner_op, lhs1, rhs1)) => {
         //println("Hit Compound(op, something, Compound) case")
-        simplify_any_compound(outer_op, lhs, Compound(inner_op, lhs1, rhs1))
+        simplify_any_compound(outer_op, lhs, Compound(inner_op, lhs1, rhs1), true, binding)
       }
       case otherwise => {
         //println("Hit otherwise case")
@@ -486,73 +483,95 @@ class MathCode {
   //*****************************************************
   //* Runs the test() method when TEST is used in the DSL
   //*****************************************************
-  def TEST() : Unit = test()
+  def TEST_COMPOUND_SIMPLIFICATION() : Unit = test()
+  
+  def testIfEqual(a: String, b:String): Boolean = {
+    if (a.equals(b)) {
+      println(" PASS");
+      return true;
+    }
+    else {
+      println(" FAIL");
+      return false;
+    }
+  }
   
   /**
    * Arbitrary test method.
    */
   def test() {
     
-    var compound1 = Compound("+", Unbound('a), NumberValue(3,1));
-    var compound2 = Compound("-", NumberValue(4,1), Unbound('a));
+    var compound1 = Compound("+", Unbound('mike), NumberValue(3,1));
+    var compound2 = Compound("-", NumberValue(4,1), Unbound('mike));
     var compound3 = Compound("-", compound1, compound2);
     var compound4 = Compound("+", NumberValue(55,1), compound1);
     var compound5 = Compound("-", compound4, compound2);
     var compound6 = Compound("+", compound1, compound2);
-    var longCompoundTest = Compound("+", Compound("-", Unbound('a), Unbound('a)), Compound("-", Unbound('a), Unbound('a)));
+    var longCompoundTest = Compound("+", Compound("-", Unbound('mike), Unbound('mike)), Compound("-", Unbound('mike), Unbound('mike)));
     
     // This is 'x := 'a + 'b + 'c
-    var test = Compound("+",Compound("+",Unbound('a),Unbound('b)),Unbound('c));
+    var test = Compound("+",Compound("+",Unbound('mike),Unbound('james)),Unbound('mike));
     
     // This is 'x := 'a + 'b + 'c + 'd
-    var test2 = Compound("+",Compound("+",Compound("+",Unbound('a),Unbound('b)),Unbound('c)),Unbound('d));
+    var test2 = Compound("+",Compound("+",Compound("+",Unbound('mike),Unbound('james)),Unbound('taylorSwift)),Unbound('selenaGomez));
 
     var test3 = Compound("-", test, test2);
     var test4 = Compound("*", compound3, compound5);
     var test5 = Compound("*", compound6, compound5);
-    var test6 = Compound("^", Compound("-", Compound("+", 'a, 1), 'a), 3);
-    var test7 = Compound("^", Compound("-", Compound("+", 'a, 1), 'a), 'z);
+    var test6 = Compound("^", Compound("-", Compound("+", 'mike, 1), 'mike), 3);
+    var test7 = Compound("^", Compound("-", Compound("+", 'mike, 1), 'mike), 'james);
     
-    println("\nTESTING CONVERT TO CompoundCluster: " );
+    println("\nTESTING CONVERT TO COMPOUND CLUSTER: " );
+    var testResults: List[Boolean] = List();
     
     var cc3: CompoundCluster = compoundToCompoundCluster(compound3);
-    // ((a + 3) - (4 - a))
-    println(flattenCompoundClusterToString(cc3));
+    // ((mike + 3) - (4 - mike))
+    print(flattenCompoundClusterToString(cc3));
+    testResults = testResults.:+(testIfEqual(flattenCompoundClusterToString(cc3), "((mike + 3) - (4 - mike))"));
     
     var cc4: CompoundCluster = compoundToCompoundCluster(compound5);
-    // ((55 + (a + 3)) - (4 - a))
-    println(flattenCompoundClusterToString(cc4));
+    // ((55 + (mike + 3)) - (4 - mike))
+    print(flattenCompoundClusterToString(cc4));
+    testResults = testResults.:+(testIfEqual(flattenCompoundClusterToString(cc4), "((55 + (mike + 3)) - (4 - mike))"));
     
     var cc5: CompoundCluster = compoundToCompoundCluster(longCompoundTest);
-    // ((a - a) + (a - a))
-    println(flattenCompoundClusterToString(cc5));
+    // ((mike - mike) + (mike - mike))
+    print(flattenCompoundClusterToString(cc5));
+    testResults = testResults.:+(testIfEqual(flattenCompoundClusterToString(cc5), "((mike - mike) + (mike - mike))"));
     
     var cc6: CompoundCluster = compoundToCompoundCluster(test4);
-    // (((a + 3) - (4 - a)) * ((55 + (a + 3)) - (4 - a)))
-    println(flattenCompoundClusterToString(cc6));
+    // (((mike + 3) - (4 - mike)) * ((55 + (mike + 3)) - (4 - mike)))
+    print(flattenCompoundClusterToString(cc6));
+    testResults = testResults.:+(testIfEqual(flattenCompoundClusterToString(cc6), "(((mike + 3) - (4 - mike)) * ((55 + (mike + 3)) - (4 - mike)))"));
     
     var cc7: CompoundCluster = compoundToCompoundCluster(test5);
-    // (((a + 3) + (4 - a)) * ((55 + (a + 3)) - (4 - a)))
-    println(flattenCompoundClusterToString(cc7));
+    // (((mike + 3) + (mike - a)) * ((55 + (mike + 3)) - (4 - mike)))
+    print(flattenCompoundClusterToString(cc7));
+    testResults = testResults.:+(testIfEqual(flattenCompoundClusterToString(cc7), "(((mike + 3) + (4 - mike)) * ((55 + (mike + 3)) - (4 - mike)))"));
     
     var cc8: CompoundCluster = compoundToCompoundCluster(test6);
-    // (((a + 1) - a) ^ 3)
-    println(flattenCompoundClusterToString(cc8));
+    // (((mike + 1) - mike) ^ 3)
+    print(flattenCompoundClusterToString(cc8));
+    testResults = testResults.:+(testIfEqual(flattenCompoundClusterToString(cc8), "(((mike + 1) - mike) ^ 3)"));
     
     var cc9: CompoundCluster = compoundToCompoundCluster(test7);
-    // (((a + 1) - a) ^ z)
-    println(flattenCompoundClusterToString(cc9));
+    // (((mike + 1) - mike) ^ james)
+    print(flattenCompoundClusterToString(cc9));
+    testResults = testResults.:+(testIfEqual(flattenCompoundClusterToString(cc9), "(((mike + 1) - mike) ^ james)"));
     
-    // (((a + b) + c) + d)
+    // (((mike + james) + taylorSwift) + selenaGomez)
     var cc10: CompoundCluster = compoundToCompoundCluster(test2);
-    println(flattenCompoundClusterToString(cc10));
+    print(flattenCompoundClusterToString(cc10));
+    testResults = testResults.:+(testIfEqual(flattenCompoundClusterToString(cc10), "(((mike + james) + taylorSwift) + selenaGomez)"));
     
-    
-    //println(flattenCompoundToString(test));
-    //println(flattenCompoundToString(test2));
-    //println(flattenCompoundToString(test3));
-    //println(flattenCompoundToString(compound3));
-    //PRINT(compound1);
+    for (element <- testResults) {
+      if (!element) {
+        println("\n\t--------------------------------------");
+        println("\t- Converting to CC tests had a FAILURE");
+        println("\t--------------------------------------");
+        return;
+      }
+    }
     
     //********************************
     //* Testing merge values function
@@ -560,125 +579,154 @@ class MathCode {
     
     println("\nTESTING MERGE GROUPS FUNCTION: ");
     
-    // (a + 3 - 4 + a)
+    // (mike + 3 - 4 + mike)
     var group1: CompoundCluster = mergeGroups(cc3.ops(0), cc3.children(0), cc3.children(1));
-    println(group1);
+    print(group1);
+    testResults = testResults.:+(testIfEqual(group1.toString(), "(mike + 3 - 4 + mike)"));
     
-    // (a + 3 + 4 - a)
+    
+    // (mike + 3 + 4 - mike)
     var group2: CompoundCluster = mergeGroups("+", cc3.children(0), cc3.children(1));
-    println(group2);
+    print(group2);
+    testResults = testResults.:+(testIfEqual(group2.toString(), "(mike + 3 + 4 - mike)"));
     
-    // ((a + 3) * (4 - a))
+    // ((mike + 3) * (4 - mike))
     var group3: CompoundCluster = mergeGroups("*", cc3.children(0), cc3.children(1));
-    println(group3);
+    print(group3);
+    testResults = testResults.:+(testIfEqual(group3.toString(), "((mike + 3) * (4 - mike))"));
     
-    // ((a + 3) / (4 - a))
+    // ((mike + 3) / (4 - mike))
     var group4: CompoundCluster = mergeGroups("/", cc3.children(0), cc3.children(1));
-    println(group4);
+    print(group4);
+    testResults = testResults.:+(testIfEqual(group4.toString(), "((mike + 3) / (4 - mike))"));
     
-    // (55 + a + 3 - 4 + a)
+    // (55 + mike + 3 - 4 + mike)
     var group5: CompoundCluster = mergeGroups(cc4.ops(0), cc4.children(0), cc4.children(1));
-    println(group5);
+    print(group5);
+    testResults = testResults.:+(testIfEqual(group5.toString(), "(55 + mike + 3 - 4 + mike)"));
     
-    // (a - a + a - a)
+    // (mike - mike + mike - mike)
     var group6: CompoundCluster = mergeGroups(cc5.ops(0), cc5.children(0), cc5.children(1));
-    println(group6);
+    print(group6);
+    testResults = testResults.:+(testIfEqual(group6.toString(), "(mike - mike + mike - mike)"));
     
-    // ((a + 3 - 4 + a) * (55 + a + 3 - 4 + a))
+    // ((mike + 3 - 4 + mike) * (55 + mike + 3 - 4 + mike))
     var group7: CompoundCluster = mergeGroups(cc6.ops(0), cc6.children(0), cc6.children(1));
-    println(group7);
+    print(group7);
+    testResults = testResults.:+(testIfEqual(group7.toString(), "((mike + 3 - 4 + mike) * (55 + mike + 3 - 4 + mike))"));
     
-    // ((a + 3 + 4 - a) * (55 + a + 3 - 4 + a))
+    // ((mike + 3 + 4 - mike) * (55 + mike + 3 - 4 + mike))
     var group8: CompoundCluster = mergeGroups(cc7.ops(0), cc7.children(0), cc7.children(1));
-    println(group8);
+    print(group8);
+    testResults = testResults.:+(testIfEqual(group8.toString(), "((mike + 3 + 4 - mike) * (55 + mike + 3 - 4 + mike))"));
     
-    // ((a + 1 - a) ^ 3)
+    // ((mike + 1 - mike) ^ 3)
     var group9: CompoundCluster = mergeGroups(cc8.ops(0), cc8.children(0), cc8.children(1));
-    println(group9);
+    print(group9);
+    testResults = testResults.:+(testIfEqual(group9.toString(), "((mike + 1 - mike) ^ 3)"));
     
-    // ((a + 1 - a) ^ z)
+    // ((mike + 1 - mike) ^ james)
     var group10: CompoundCluster = mergeGroups(cc9.ops(0), cc9.children(0), cc9.children(1));
-    println(group10);
+    print(group10);
+    testResults = testResults.:+(testIfEqual(group10.toString(), "((mike + 1 - mike) ^ james)"));
     
-    // (a + b + c + d)
+    // (mike + james + taylorSwift + selenaGomez)
     var group11: CompoundCluster = mergeGroups(cc10.ops(0), cc10.children(0), cc10.children(1));
-    println(group11);
+    print(group11);
+    testResults = testResults.:+(testIfEqual(group11.toString(), "(mike + james + taylorSwift + selenaGomez)"));
     
-    println("\nFINAL SIMPLIFY TESTS BELOW: ");
+    for (element <- testResults) {
+      if (!element) {
+        println("\n\t--------------------------------------");
+        println("\t- Merge tests had a FAILURE");
+        println("\t--------------------------------------");
+        return;
+      }
+    }
     
-    // Should be: (a + -1 + a)
-    println(simplifyGroups(group1));
-    println(simplifyCompound(compound3));
+    var noBinding:Map[Symbol, Value] = Map()
+    
+    println("\nTESTING FINAL SIMPLIFY TESTS: ");
+    
+    // Should be: (mike + -1 + mike)
+    print(simplifyCompound(compound3, false, noBinding));
+    testResults = testResults.:+(testIfEqual(simplifyCompound(compound3, false, noBinding).toString(), "(mike + -1 + mike)"));
+    print("PRINTLN version (not tested): ");
     PRINTLN(compound3);
-    println(compound3);
     println();
     
-    // Should be: 7
-    println(simplifyGroups(group2));
-    println();
-    
-    // Should be: (54 + a + a)
-    println(simplifyGroups(group5));
-    println(simplifyCompound(compound5));
+    // Should be: (54 + mike + mike)
+    print(simplifyCompound(compound5, false, noBinding));
+    testResults = testResults.:+(testIfEqual(simplifyCompound(compound5, false, noBinding).toString(), "(54 + mike + mike)"));
+    print("PRINTLN version (not tested): ");
     PRINTLN(compound5);
-    println(compound5);
     println();
     
     // Should be: 0
-    println(simplifyGroups(group6));
-    println(simplifyCompound(longCompoundTest));
+    print(simplifyCompound(longCompoundTest, false, noBinding));
+    testResults = testResults.:+(testIfEqual(simplifyCompound(longCompoundTest, false, noBinding).toString(), "0"));
+    print("PRINTLN version (not tested): ");
     PRINTLN(longCompoundTest);
-    println(longCompoundTest);
     println();
     
-    // Should be: ((a + -1 + a) * (54 + a + a))
-    println(simplifyGroups(group7));
-    println(simplifyCompound(test4));
+    // Should be: ((mike + -1 + mike) * (54 + mike + mike))
+    print(simplifyCompound(test4, false, noBinding));
+    testResults = testResults.:+(testIfEqual(simplifyCompound(test4, false, noBinding).toString(), "((mike + -1 + mike) * (54 + mike + mike))"));
+    print("PRINTLN version (not tested): ");
     PRINTLN(test4);
-    println(test4);
     println();
     
-    // Should be: (7 * (54 + a + a))
-    println(simplifyGroups(group8));
-    println(simplifyCompound(test5));
+    // Should be: (7 * (54 + mike + mike))
+    print(simplifyCompound(test5, false, noBinding));
+    testResults = testResults.:+(testIfEqual(simplifyCompound(test5, false, noBinding).toString(), "(7 * (54 + mike + mike))"));
+    print("PRINTLN version (not tested): ");
     PRINTLN(test5);
-    println(test5);
     println();
     
     // Should be: 1
-    println(simplifyGroups(group9));
-    println(simplifyCompound(test6));
+    print(simplifyCompound(test6, false, noBinding));
+    testResults = testResults.:+(testIfEqual(simplifyCompound(test6, false, noBinding).toString(), "1"));
+    print("PRINTLN version (not tested): ");
     PRINTLN(test6);
-    println(test6);
     println();
     
-    // Should be: (1 ^ z)
-    println(simplifyGroups(group10));
-    println(simplifyCompound(test7));
+    // Should be: (1 ^ james)
+    print(simplifyCompound(test7, false, noBinding));
+    testResults = testResults.:+(testIfEqual(simplifyCompound(test7, false, noBinding).toString(), "(1 ^ james)"));
+    print("PRINTLN version (not tested): ");
     PRINTLN(test7);
-    println(test7);
     println();
     
-    println("------\n\n");
-    
-    println(flattenCompoundToString(compoundClusterToCompound(simplifyGroups(group7).asInstanceOf[CompoundCluster])));
-    
-    // Should be: (1 ^ z)
-    println(simplifyGroups(group11));
-    println(simplifyCompound(test2));
+    // Should be: (1 ^ james)
+    print(simplifyCompound(test2, false, noBinding));
+    testResults = testResults.:+(testIfEqual(simplifyCompound(test2, false, noBinding).toString(), "(mike + james + taylorSwift + selenaGomez)"));
+    print("PRINTLN version (not tested): ");
     PRINTLN(test2);
-    println(test2);
     println();
+    
+    for (element <- testResults) {
+      if (!element) {
+        println("\n\t--------------------------------------");
+        println("\t- Final simplify tests had a FAILURE");
+        println("\t--------------------------------------");
+        return;
+      }
+    }
+    
+    // Else, all tests passed.
+    println("\n\t+++++++++++++++++++++++++++++++++++++");
+    println("\t+ ALL TESTS PASSED");
+    println("\t+++++++++++++++++++++++++++++++++++++");
   }
   
   
   /**
    * Simplifies the given Compound, returns a CompoundCluster.
    */
-  def simplifyCompoundtoCompoundCluster(compound: Compound, approximate: Boolean = false): Value = {
+  def simplifyCompoundtoCompoundCluster(compound: Compound, approximate: Boolean, binding:Map[Symbol, Value]): Value = {
     
     // Replace all variables by their bindings.
-    var tempValue: Value = getCompoundGivenBinding(compound, approximate, variableMap);
+    var tempValue: Value = getCompoundGivenBinding(compound, approximate, binding);
     
     // If the result is not a Compound, then return it. It could be a
     // NumberValue or an Unbound, for example.
@@ -717,7 +765,7 @@ class MathCode {
   /**
    * Simplifies the given Compound, returns a Compound.
    */
-  def simplifyCompound(compound: Compound, approximate: Boolean = false): Value = {
+  def simplifyCompound(compound: Compound, approximate: Boolean, binding: Map[Symbol, Value]): Value = {
     
     // Replace all variables by their bindings.
     var tempValue: Value = getCompoundGivenBinding(compound, approximate, variableMap);

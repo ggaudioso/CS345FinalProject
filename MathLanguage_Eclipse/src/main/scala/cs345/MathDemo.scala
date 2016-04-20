@@ -92,7 +92,6 @@ object MathDemo extends MathCode{
     //'x := 'a + 'b + 'c + 'd
     //PRINTLN('x)
     
-    //TEST
     'y := 'f('x)
     'h := 'f(2 + 80)
     'z := 'f('x + 5)
@@ -111,5 +110,8 @@ object MathDemo extends MathCode{
     PRINTLN('w + 5*'w^3)
     PRINTLN('x)
     PRINTLN('x + 5*'x^3)
+    
+    // Regression tests for compound simplification.
+    TEST_COMPOUND_SIMPLIFICATION
   }
 }
