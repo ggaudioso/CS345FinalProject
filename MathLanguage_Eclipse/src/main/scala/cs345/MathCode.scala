@@ -473,73 +473,95 @@ class MathCode {
   //*****************************************************
   //* Runs the test() method when TEST is used in the DSL
   //*****************************************************
-  def TEST() : Unit = test()
+  def TEST_COMPOUND_SIMPLIFICATION() : Unit = test()
+  
+  def testIfEqual(a: String, b:String): Boolean = {
+    if (a.equals(b)) {
+      println(" PASS");
+      return true;
+    }
+    else {
+      println(" FAIL");
+      return false;
+    }
+  }
   
   /**
    * Arbitrary test method.
    */
   def test() {
     
-    var compound1 = Compound("+", Unbound('a), NumberValue(3,1));
-    var compound2 = Compound("-", NumberValue(4,1), Unbound('a));
+    var compound1 = Compound("+", Unbound('mike), NumberValue(3,1));
+    var compound2 = Compound("-", NumberValue(4,1), Unbound('mike));
     var compound3 = Compound("-", compound1, compound2);
     var compound4 = Compound("+", NumberValue(55,1), compound1);
     var compound5 = Compound("-", compound4, compound2);
     var compound6 = Compound("+", compound1, compound2);
-    var longCompoundTest = Compound("+", Compound("-", Unbound('a), Unbound('a)), Compound("-", Unbound('a), Unbound('a)));
+    var longCompoundTest = Compound("+", Compound("-", Unbound('mike), Unbound('mike)), Compound("-", Unbound('mike), Unbound('mike)));
     
     // This is 'x := 'a + 'b + 'c
-    var test = Compound("+",Compound("+",Unbound('a),Unbound('b)),Unbound('c));
+    var test = Compound("+",Compound("+",Unbound('mike),Unbound('james)),Unbound('mike));
     
     // This is 'x := 'a + 'b + 'c + 'd
-    var test2 = Compound("+",Compound("+",Compound("+",Unbound('a),Unbound('b)),Unbound('c)),Unbound('d));
+    var test2 = Compound("+",Compound("+",Compound("+",Unbound('mike),Unbound('james)),Unbound('taylorSwift)),Unbound('selenaGomez));
 
     var test3 = Compound("-", test, test2);
     var test4 = Compound("*", compound3, compound5);
     var test5 = Compound("*", compound6, compound5);
-    var test6 = Compound("^", Compound("-", Compound("+", 'a, 1), 'a), 3);
-    var test7 = Compound("^", Compound("-", Compound("+", 'a, 1), 'a), 'z);
+    var test6 = Compound("^", Compound("-", Compound("+", 'mike, 1), 'mike), 3);
+    var test7 = Compound("^", Compound("-", Compound("+", 'mike, 1), 'mike), 'james);
     
-    println("\nTESTING CONVERT TO CompoundCluster: " );
+    println("\nTESTING CONVERT TO COMPOUND CLUSTER: " );
+    var testResults: List[Boolean] = List();
     
     var cc3: CompoundCluster = compoundToCompoundCluster(compound3);
-    // ((a + 3) - (4 - a))
-    println(flattenCompoundClusterToString(cc3));
+    // ((mike + 3) - (4 - mike))
+    print(flattenCompoundClusterToString(cc3));
+    testResults = testResults.:+(testIfEqual(flattenCompoundClusterToString(cc3), "((mike + 3) - (4 - mike))"));
     
     var cc4: CompoundCluster = compoundToCompoundCluster(compound5);
-    // ((55 + (a + 3)) - (4 - a))
-    println(flattenCompoundClusterToString(cc4));
+    // ((55 + (mike + 3)) - (4 - mike))
+    print(flattenCompoundClusterToString(cc4));
+    testResults = testResults.:+(testIfEqual(flattenCompoundClusterToString(cc4), "((55 + (mike + 3)) - (4 - mike))"));
     
     var cc5: CompoundCluster = compoundToCompoundCluster(longCompoundTest);
-    // ((a - a) + (a - a))
-    println(flattenCompoundClusterToString(cc5));
+    // ((mike - mike) + (mike - mike))
+    print(flattenCompoundClusterToString(cc5));
+    testResults = testResults.:+(testIfEqual(flattenCompoundClusterToString(cc5), "((mike - mike) + (mike - mike))"));
     
     var cc6: CompoundCluster = compoundToCompoundCluster(test4);
-    // (((a + 3) - (4 - a)) * ((55 + (a + 3)) - (4 - a)))
-    println(flattenCompoundClusterToString(cc6));
+    // (((mike + 3) - (4 - mike)) * ((55 + (mike + 3)) - (4 - mike)))
+    print(flattenCompoundClusterToString(cc6));
+    testResults = testResults.:+(testIfEqual(flattenCompoundClusterToString(cc6), "(((mike + 3) - (4 - mike)) * ((55 + (mike + 3)) - (4 - mike)))"));
     
     var cc7: CompoundCluster = compoundToCompoundCluster(test5);
-    // (((a + 3) + (4 - a)) * ((55 + (a + 3)) - (4 - a)))
-    println(flattenCompoundClusterToString(cc7));
+    // (((mike + 3) + (mike - a)) * ((55 + (mike + 3)) - (4 - mike)))
+    print(flattenCompoundClusterToString(cc7));
+    testResults = testResults.:+(testIfEqual(flattenCompoundClusterToString(cc7), "(((mike + 3) + (4 - mike)) * ((55 + (mike + 3)) - (4 - mike)))"));
     
     var cc8: CompoundCluster = compoundToCompoundCluster(test6);
-    // (((a + 1) - a) ^ 3)
-    println(flattenCompoundClusterToString(cc8));
+    // (((mike + 1) - mike) ^ 3)
+    print(flattenCompoundClusterToString(cc8));
+    testResults = testResults.:+(testIfEqual(flattenCompoundClusterToString(cc8), "(((mike + 1) - mike) ^ 3)"));
     
     var cc9: CompoundCluster = compoundToCompoundCluster(test7);
-    // (((a + 1) - a) ^ z)
-    println(flattenCompoundClusterToString(cc9));
+    // (((mike + 1) - mike) ^ james)
+    print(flattenCompoundClusterToString(cc9));
+    testResults = testResults.:+(testIfEqual(flattenCompoundClusterToString(cc9), "(((mike + 1) - mike) ^ james)"));
     
-    // (((a + b) + c) + d)
+    // (((mike + james) + taylorSwift) + selenaGomez)
     var cc10: CompoundCluster = compoundToCompoundCluster(test2);
-    println(flattenCompoundClusterToString(cc10));
+    print(flattenCompoundClusterToString(cc10));
+    testResults = testResults.:+(testIfEqual(flattenCompoundClusterToString(cc10), "(((mike + james) + taylorSwift) + selenaGomez)"));
     
-    
-    //println(flattenCompoundToString(test));
-    //println(flattenCompoundToString(test2));
-    //println(flattenCompoundToString(test3));
-    //println(flattenCompoundToString(compound3));
-    //PRINT(compound1);
+    for (element <- testResults) {
+      if (!element) {
+        println("\n\t--------------------------------------");
+        println("\t- Converting to CC tests had a FAILURE");
+        println("\t--------------------------------------");
+        return;
+      }
+    }
     
     //********************************
     //* Testing merge values function
@@ -547,115 +569,142 @@ class MathCode {
     
     println("\nTESTING MERGE GROUPS FUNCTION: ");
     
-    // (a + 3 - 4 + a)
+    // (mike + 3 - 4 + mike)
     var group1: CompoundCluster = mergeGroups(cc3.ops(0), cc3.children(0), cc3.children(1));
-    println(group1);
+    print(group1);
+    testResults = testResults.:+(testIfEqual(group1.toString(), "(mike + 3 - 4 + mike)"));
     
-    // (a + 3 + 4 - a)
+    
+    // (mike + 3 + 4 - mike)
     var group2: CompoundCluster = mergeGroups("+", cc3.children(0), cc3.children(1));
-    println(group2);
+    print(group2);
+    testResults = testResults.:+(testIfEqual(group2.toString(), "(mike + 3 + 4 - mike)"));
     
-    // ((a + 3) * (4 - a))
+    // ((mike + 3) * (4 - mike))
     var group3: CompoundCluster = mergeGroups("*", cc3.children(0), cc3.children(1));
-    println(group3);
+    print(group3);
+    testResults = testResults.:+(testIfEqual(group3.toString(), "((mike + 3) * (4 - mike))"));
     
-    // ((a + 3) / (4 - a))
+    // ((mike + 3) / (4 - mike))
     var group4: CompoundCluster = mergeGroups("/", cc3.children(0), cc3.children(1));
-    println(group4);
+    print(group4);
+    testResults = testResults.:+(testIfEqual(group4.toString(), "((mike + 3) / (4 - mike))"));
     
-    // (55 + a + 3 - 4 + a)
+    // (55 + mike + 3 - 4 + mike)
     var group5: CompoundCluster = mergeGroups(cc4.ops(0), cc4.children(0), cc4.children(1));
-    println(group5);
+    print(group5);
+    testResults = testResults.:+(testIfEqual(group5.toString(), "(55 + mike + 3 - 4 + mike)"));
     
-    // (a - a + a - a)
+    // (mike - mike + mike - mike)
     var group6: CompoundCluster = mergeGroups(cc5.ops(0), cc5.children(0), cc5.children(1));
-    println(group6);
+    print(group6);
+    testResults = testResults.:+(testIfEqual(group6.toString(), "(mike - mike + mike - mike)"));
     
-    // ((a + 3 - 4 + a) * (55 + a + 3 - 4 + a))
+    // ((mike + 3 - 4 + mike) * (55 + mike + 3 - 4 + mike))
     var group7: CompoundCluster = mergeGroups(cc6.ops(0), cc6.children(0), cc6.children(1));
-    println(group7);
+    print(group7);
+    testResults = testResults.:+(testIfEqual(group7.toString(), "((mike + 3 - 4 + mike) * (55 + mike + 3 - 4 + mike))"));
     
-    // ((a + 3 + 4 - a) * (55 + a + 3 - 4 + a))
+    // ((mike + 3 + 4 - mike) * (55 + mike + 3 - 4 + mike))
     var group8: CompoundCluster = mergeGroups(cc7.ops(0), cc7.children(0), cc7.children(1));
-    println(group8);
+    print(group8);
+    testResults = testResults.:+(testIfEqual(group8.toString(), "((mike + 3 + 4 - mike) * (55 + mike + 3 - 4 + mike))"));
     
-    // ((a + 1 - a) ^ 3)
+    // ((mike + 1 - mike) ^ 3)
     var group9: CompoundCluster = mergeGroups(cc8.ops(0), cc8.children(0), cc8.children(1));
-    println(group9);
+    print(group9);
+    testResults = testResults.:+(testIfEqual(group9.toString(), "((mike + 1 - mike) ^ 3)"));
     
-    // ((a + 1 - a) ^ z)
+    // ((mike + 1 - mike) ^ james)
     var group10: CompoundCluster = mergeGroups(cc9.ops(0), cc9.children(0), cc9.children(1));
-    println(group10);
+    print(group10);
+    testResults = testResults.:+(testIfEqual(group10.toString(), "((mike + 1 - mike) ^ james)"));
     
-    // (a + b + c + d)
+    // (mike + james + taylorSwift + selenaGomez)
     var group11: CompoundCluster = mergeGroups(cc10.ops(0), cc10.children(0), cc10.children(1));
-    println(group11);
+    print(group11);
+    testResults = testResults.:+(testIfEqual(group11.toString(), "(mike + james + taylorSwift + selenaGomez)"));
     
-    println("\nFINAL SIMPLIFY TESTS BELOW: ");
+    for (element <- testResults) {
+      if (!element) {
+        println("\n\t--------------------------------------");
+        println("\t- Merge tests had a FAILURE");
+        println("\t--------------------------------------");
+        return;
+      }
+    }
     
-    // Should be: (a + -1 + a)
-    println(simplifyGroups(group1));
-    println(simplifyCompound(compound3));
+    println("\nTESTING FINAL SIMPLIFY TESTS: ");
+    
+    // Should be: (mike + -1 + mike)
+    print(simplifyCompound(compound3));
+    testResults = testResults.:+(testIfEqual(simplifyCompound(compound3).toString(), "(mike + -1 + mike)"));
+    print("PRINTLN version (not tested): ");
     PRINTLN(compound3);
-    println(compound3);
     println();
     
-    // Should be: 7
-    println(simplifyGroups(group2));
-    println();
-    
-    // Should be: (54 + a + a)
-    println(simplifyGroups(group5));
-    println(simplifyCompound(compound5));
+    // Should be: (54 + mike + mike)
+    print(simplifyCompound(compound5));
+    testResults = testResults.:+(testIfEqual(simplifyCompound(compound5).toString(), "(54 + mike + mike)"));
+    print("PRINTLN version (not tested): ");
     PRINTLN(compound5);
-    println(compound5);
     println();
     
     // Should be: 0
-    println(simplifyGroups(group6));
-    println(simplifyCompound(longCompoundTest));
+    print(simplifyCompound(longCompoundTest));
+    testResults = testResults.:+(testIfEqual(simplifyCompound(longCompoundTest).toString(), "0"));
+    print("PRINTLN version (not tested): ");
     PRINTLN(longCompoundTest);
-    println(longCompoundTest);
     println();
     
-    // Should be: ((a + -1 + a) * (54 + a + a))
-    println(simplifyGroups(group7));
-    println(simplifyCompound(test4));
+    // Should be: ((mike + -1 + mike) * (54 + mike + mike))
+    print(simplifyCompound(test4));
+    testResults = testResults.:+(testIfEqual(simplifyCompound(test4).toString(), "((mike + -1 + mike) * (54 + mike + mike))"));
+    print("PRINTLN version (not tested): ");
     PRINTLN(test4);
-    println(test4);
     println();
     
-    // Should be: (7 * (54 + a + a))
-    println(simplifyGroups(group8));
-    println(simplifyCompound(test5));
+    // Should be: (7 * (54 + mike + mike))
+    print(simplifyCompound(test5));
+    testResults = testResults.:+(testIfEqual(simplifyCompound(test5).toString(), "(7 * (54 + mike + mike))"));
+    print("PRINTLN version (not tested): ");
     PRINTLN(test5);
-    println(test5);
     println();
     
     // Should be: 1
-    println(simplifyGroups(group9));
-    println(simplifyCompound(test6));
+    print(simplifyCompound(test6));
+    testResults = testResults.:+(testIfEqual(simplifyCompound(test6).toString(), "1"));
+    print("PRINTLN version (not tested): ");
     PRINTLN(test6);
-    println(test6);
     println();
     
-    // Should be: (1 ^ z)
-    println(simplifyGroups(group10));
-    println(simplifyCompound(test7));
+    // Should be: (1 ^ james)
+    print(simplifyCompound(test7));
+    testResults = testResults.:+(testIfEqual(simplifyCompound(test7).toString(), "(1 ^ james)"));
+    print("PRINTLN version (not tested): ");
     PRINTLN(test7);
-    println(test7);
     println();
     
-    println("------\n\n");
-    
-    println(flattenCompoundToString(compoundClusterToCompound(simplifyGroups(group7).asInstanceOf[CompoundCluster])));
-    
-    // Should be: (1 ^ z)
-    println(simplifyGroups(group11));
-    println(simplifyCompound(test2));
+    // Should be: (1 ^ james)
+    print(simplifyCompound(test2));
+    testResults = testResults.:+(testIfEqual(simplifyCompound(test2).toString(), "(mike + james + taylorSwift + selenaGomez)"));
+    print("PRINTLN version (not tested): ");
     PRINTLN(test2);
-    println(test2);
     println();
+    
+    for (element <- testResults) {
+      if (!element) {
+        println("\n\t--------------------------------------");
+        println("\t- Final simplify tests had a FAILURE");
+        println("\t--------------------------------------");
+        return;
+      }
+    }
+    
+    // Else, all tests passed.
+    println("\n\t+++++++++++++++++++++++++++++++++++++");
+    println("\t+ ALL TESTS PASSED");
+    println("\t+++++++++++++++++++++++++++++++++++++");
   }
   
   
