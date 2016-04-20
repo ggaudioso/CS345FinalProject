@@ -1693,17 +1693,15 @@ class MathCode {
   
   // For use in function bodies, to make sure there isn't anything we don't expect
   def ensureValueOnlyContainsUnboundWithSymbolicNames(value:Value, symbolicNames:Seq[Symbol]): Unit = {
-    for (symbolicName <- symbolicNames) {
-      value match {
-        case NumberValue(_,_) => return
-        case Unbound(sym:Symbol) => {
-          if(!(symbolicNames contains symbolicName))
-            throw new Exception("You can't have any variables in a function body other than the parameter. Parameter is " + symbolicName.toString() + ", found " + sym.toString())
-        }
-        case Compound(_, lhs, rhs) => {
-          ensureValueOnlyContainsUnboundWithSymbolicNames(lhs, symbolicNames)
-          ensureValueOnlyContainsUnboundWithSymbolicNames(rhs, symbolicNames)
-        }
+    value match {
+      case NumberValue(_,_) => return
+      case Unbound(sym:Symbol) => {
+        if(!(symbolicNames contains sym))
+          throw new Exception("You can't have any variables in a function body other than the parameter. Parameters are " + symbolicNames.toString() + ", found " + sym.toString())
+      }
+      case Compound(_, lhs, rhs) => {
+        ensureValueOnlyContainsUnboundWithSymbolicNames(lhs, symbolicNames)
+        ensureValueOnlyContainsUnboundWithSymbolicNames(rhs, symbolicNames)
       }
     }
   }
