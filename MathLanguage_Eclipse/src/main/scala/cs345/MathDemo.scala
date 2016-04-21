@@ -1,5 +1,7 @@
+object MathDemo {
+  
+  import MathCode._ 
 
-object MathDemo extends MathCode{
   def main(args: Array[String]):Unit = {  
     
     'b := 3 + 6 * 5 / 3
