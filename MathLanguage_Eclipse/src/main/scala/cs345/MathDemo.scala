@@ -9,6 +9,7 @@ object MathDemo extends MathCode{
     
     'g of ('x, 'y) := 'x + 'y
     
+    
     println
     PRINTLN_EVALUATE(1 / 3)
     PRINTLN_EVALUATE(1 OVER 3)
