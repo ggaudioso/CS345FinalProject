@@ -1,6 +1,7 @@
 
 object MathDemo extends MathCode{
   def main(args: Array[String]):Unit = {  
+    
     'b := 3 + 6 * 5 / 3
     
     'x := -'b + 6 * 7 / 6 * 3

@@ -94,7 +94,7 @@ class MathCode {
       
       // This will return either a NumberValue, an UnBound, or a 
       // CompoundCluster.
-      var value: Value = simplifyCompoundtoCompoundCluster(this, false, variableMap);
+      var value: Value = simplifyCompoundtoCompoundCluster(this, variableMap);
       
       return value.toString();
       
@@ -148,9 +148,6 @@ class MathCode {
   // we actually need it.
   implicit def symbolToUnbound(symbol:Symbol):Unbound = Unbound(symbol)
 
-  //***************************************************************************
-  //* INSTRUCTIONS IN OUR LANGUAGE:
-  //***************************************************************************
   
   case class Variable(variableName:Symbol) {
     def :=(value:Value) : Unit= {
@@ -158,7 +155,7 @@ class MathCode {
         println(variableName)
         throw new Exception("Redefinition is not allowed!")
       }
-      variableMap += (variableName -> simplify(value, false, variableMap))
+      variableMap += (variableName -> simplify(value, variableMap))
     }
   }
   
@@ -205,7 +202,7 @@ class MathCode {
         var argument : Value = value match {
           case nv:NumberValue => nv
           case Unbound(symbol) => variableLookupFromBinding(symbol, variableMap)
-          case compound:Compound => simplify(getCompoundGivenBinding(compound, false, variableMap), false, variableMap)
+          case compound:Compound => simplify(getCompoundGivenBinding(compound,  variableMap), variableMap)
         }
 
         bindings += (parameter -> argument)
@@ -213,7 +210,7 @@ class MathCode {
       return expression match {
         case nv:NumberValue => nv
         case umbound:Unbound => variableLookupFromBinding(umbound.sym, bindings)
-        case compound:Compound => simplify(getCompoundGivenBinding(compound, false, bindings), false, bindings)
+        case compound:Compound => simplify(getCompoundGivenBinding(compound, bindings), bindings)
       }
     }
   }
@@ -242,7 +239,7 @@ class MathCode {
   }
   
   //PRINT syntax: PRINT(whatever)
-  def PRINT(value: Value): Unit = simplify(value,false,variableMap) match {
+  def PRINT(value: Value): Unit = simplify(value, variableMap) match {
     case numberValue:NumberValue => printNumberValue(numberValue)
     case unbound:Unbound => printUnbound(unbound)
     case compound:Compound => printCompoundUsingFunction(compound, PRINT)
@@ -253,7 +250,7 @@ class MathCode {
     case NumberValue(n,d) => println(n+"/"+d)
     case Unbound(sym) => println(sym) 
     case compound:Compound => {
-      PRINT(getCompoundGivenBinding(compound, false, variableMap))
+      PRINT(getCompoundGivenBinding(compound, variableMap))
       println
     }
   }
@@ -263,7 +260,7 @@ class MathCode {
     case NumberValue(n,d) => println(n.toDouble/d.toDouble)
     case Unbound(sym) => if (isknown(sym)) println(approx(sym)) else println(sym) 
     case compound:Compound => {
-      PRINTLN(getCompoundGivenBinding(compound, true, variableMap))
+      PRINTLN(getCompoundGivenBinding(compound, variableMap)) //approximate fix
     }
   }
   
@@ -361,7 +358,7 @@ class MathCode {
   def simplify_any_compound(outer_op:String, lhs:Value, c:Compound, recurse:Boolean, binding:Map[Symbol, Value]):Value = {
     val x = simplify_any_compound2(outer_op, lhs, c, binding)
     if (recurse && !x._1)
-      simplify(x._2, false, binding)
+      simplify(x._2, binding)
     else
       x._2
   }
@@ -378,7 +375,7 @@ class MathCode {
 
         // a - (b - c) => (a - b) + c
         case ("-", "-") =>
-          (false,Compound("+", simplify(Compound("-", lhs, lhs1), false, binding), simplify(rhs1, false, binding)))
+          (false,Compound("+", simplify(Compound("-", lhs, lhs1), binding), simplify(rhs1, binding)))
 
         // Everything else
         case otherwise => (true,Compound(outer_op, lhs, c))
@@ -392,11 +389,11 @@ class MathCode {
   }
 
   def simplifyCompound_wrapper(v:Value, binding:Map[Symbol, Value]):Value = v match {
-    case c:Compound => simplifyCompound(c, false, binding)
+    case c:Compound => simplifyCompound(c, binding)
     case otherwise => v
   }
 
-  def simplify(v:Value, approximate:Boolean, binding:Map[Symbol, Value]):Value = {
+  def simplify(v:Value, binding:Map[Symbol, Value]):Value = {
     /*println("Simplifying")
     debug_print(v)
     println*/
@@ -421,20 +418,20 @@ class MathCode {
         NumberValue(1,1)
       }
       case Compound(outer_op, Compound(inner_op, lhs1, rhs1), rhs) => {
-        val simp_lhs1 = simplify(lhs1, approximate, binding)
-        val simp_rhs1 = simplify(rhs1, approximate, binding)
-        val simp_rhs = simplify(rhs, approximate, binding)
+        val simp_lhs1 = simplify(lhs1, binding)
+        val simp_rhs1 = simplify(rhs1, binding)
+        val simp_rhs = simplify(rhs, binding)
         /*println("Simplifying "+outer_op+","+inner_op)
         debug_print(v)*/
 
         (outer_op, inner_op) match {
           case ("*", "+") | ("*", "-") => {
-            val new_lhs = simplify(Compound("*", simp_lhs1, simp_rhs), approximate, binding)
-            val new_rhs = simplify(Compound("*", simp_rhs1, simp_rhs), approximate, binding)
+            val new_lhs = simplify(Compound("*", simp_lhs1, simp_rhs), binding)
+            val new_rhs = simplify(Compound("*", simp_rhs1, simp_rhs), binding)
             /*println("new lhs, rhs:")
             debug_print(new_lhs)
             debug_print(new_rhs)*/
-            simplify(Compound(inner_op, new_lhs, new_rhs), approximate, binding)
+            simplify(Compound(inner_op, new_lhs, new_rhs), binding)
           }
 
           case otherwise => rhs match {
@@ -460,10 +457,10 @@ class MathCode {
   /**
    * Simplifies the given Compound, returns a CompoundCluster.
    */
-  def simplifyCompoundtoCompoundCluster(compound: Compound, approximate: Boolean, binding:Map[Symbol, Value]): Value = {
+  def simplifyCompoundtoCompoundCluster(compound: Compound, binding:Map[Symbol, Value]): Value = {
     
     // Replace all variables by their bindings.
-    var tempValue: Value = getCompoundGivenBinding(compound, approximate, binding);
+    var tempValue: Value = getCompoundGivenBinding(compound, binding);
     
     // If the result is not a Compound, then return it. It could be a
     // NumberValue or an Unbound, for example.
@@ -502,10 +499,10 @@ class MathCode {
   /**
    * Simplifies the given Compound, returns a Compound.
    */
-  def simplifyCompound(compound: Compound, approximate: Boolean, binding: Map[Symbol, Value]): Value = {
+  def simplifyCompound(compound: Compound, binding: Map[Symbol, Value]): Value = {
     
     // Replace all variables by their bindings.
-    var tempValue: Value = getCompoundGivenBinding(compound, approximate, variableMap);
+    var tempValue: Value = getCompoundGivenBinding(compound, variableMap);
     
     // If the result is not a Compound, then return it. It could be a
     // NumberValue or an Unbound, for example.
@@ -1435,7 +1432,7 @@ class MathCode {
    * variables are replaced by their bindings, if such a binding
    * exists.
    */
-  def getCompoundGivenBinding(compound: Compound, approximate: Boolean = false, binding:Map[Symbol, Value]): Value = {
+  def getCompoundGivenBinding(compound: Compound, binding:Map[Symbol, Value]): Value = {
     
     // The final new lhs and rhs for this compound. These are
     // built recursively.
@@ -1444,25 +1441,15 @@ class MathCode {
     var op: String = compound.op
     
     newLhs = compound.lhs match {
-      case compound:Compound => getCompoundGivenBinding(compound, approximate, binding)
+      case compound:Compound => getCompoundGivenBinding(compound, binding)
       case numberValue:NumberValue => numberValue
-      case Unbound(unboundSymbol) => {
-        if (approximate && isknown(unboundSymbol))
-          approx(unboundSymbol)
-        else
-          variableLookupFromBinding(unboundSymbol, binding)
-      }
+      case Unbound(unboundSymbol) => variableLookupFromBinding(unboundSymbol, binding)
     }
     
     newRhs = compound.rhs match {
-      case compound:Compound => getCompoundGivenBinding(compound, approximate, binding)
+      case compound:Compound => getCompoundGivenBinding(compound, binding)
       case numberValue:NumberValue => numberValue
-      case Unbound(unboundSymbol) => {
-        if (approximate && isknown(unboundSymbol))
-          approx(unboundSymbol)
-        else
-          variableLookupFromBinding(unboundSymbol, binding)
-      }
+      case Unbound(unboundSymbol) => variableLookupFromBinding(unboundSymbol, binding)
     }
     
     return Compound(op, newLhs, newRhs);
