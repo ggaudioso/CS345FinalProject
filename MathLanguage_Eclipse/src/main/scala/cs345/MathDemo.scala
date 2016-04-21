@@ -109,9 +109,12 @@ object MathDemo extends MathCode{
     PRINTLN(DERIVE('w + 5*'w^3, 'w))
     PRINTLN('w + 5*'w^3)
     PRINTLN('x)
+    println
     PRINTLN('x + 5*'x^3)
+    'd := 'x + 5*'x^3
+    PRINTLN('d)
     
     // Regression tests for compound simplification.
-    TEST_COMPOUND_SIMPLIFICATION
+    //TEST_COMPOUND_SIMPLIFICATION
   }
 }

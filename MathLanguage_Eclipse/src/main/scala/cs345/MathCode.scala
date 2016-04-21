@@ -166,28 +166,6 @@ class MathCode {
   val precedence = Array(4,4,3,3,2) //let's all stick to https://en.wikipedia.org/wiki/Order_of_operations
   val precedenceMap = Map("+" -> precedence(0), "-" -> precedence(1), "*" -> precedence(2), "/" -> precedence(3), "^" -> precedence(4));
   
-  //PRINTLN syntax: PRINTLN(whatever)
-  def PRINTLN(value: Value, approximate:Boolean = false): Unit = value match {
-    case NumberValue(n,d) => {
-      if (!approximate) { if (d==1) println(n) else println(n+"/"+d) }
-      else println(n.toDouble/d.toDouble) 
-    }
-    case Unbound(sym) => println(sym) 
-    case Compound(op,lhs,rhs) => {
-      PRINT(value, approximate)
-      println();
-    }
-  }
-  
-  //PRINT syntax: PRINT(whatever)
-  def PRINT(value: Value, approximate:Boolean = false): Unit = value match {
-    case NumberValue(n,d) => {
-      if (!approximate) { if (d==1) print(n) else print(n+"/"+d) }
-      else print(n.toDouble/d.toDouble) 
-    }
-    case Unbound(sym) => print((sym.toString).substring(1)) //get rid of '
-    case Compound(op,lhs,rhs) => print(value)
-  }
   case class Function(val applier:Symbol) {
     def apply(arguments:Value*): Value  = {
       functionMap.get(applier) match {
@@ -264,7 +242,7 @@ class MathCode {
   }
   
   //PRINT syntax: PRINT(whatever)
-  def PRINT(value: Value): Unit = value match {
+  def PRINT(value: Value): Unit = simplify(value,false,variableMap) match {
     case numberValue:NumberValue => printNumberValue(numberValue)
     case unbound:Unbound => printUnbound(unbound)
     case compound:Compound => printCompoundUsingFunction(compound, PRINT)
