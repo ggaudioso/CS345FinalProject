@@ -118,6 +118,14 @@ object MathDemo {
     'd := 'x + 5*'x^3
     PRINTLN('d)
     
+    'piece of ('x, 'y) when ('x + 1 === 0 + 'y, 'x > 0) := 0
+    'piece of ('x, 'y) when ('x !== 0) := 1 / 'x
+    
+    'fortyFive := 45
+    
+    PRINTLN('piece('fortyFive + 5, 1))
+    PRINTLN('piece(4, 8))
+    
     // Regression tests for compound simplification.
     //TEST_COMPOUND_SIMPLIFICATION
   }
