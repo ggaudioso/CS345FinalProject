@@ -80,6 +80,35 @@ object Simplifier {
     }
   }
   
+  
+  def simplify_any_compound(outer_op:String, lhs:Value, c:Compound, recurse:Boolean, binding:Map[Symbol, Value]):Value = {
+    val x = simplify_any_compound2(outer_op, lhs, c, binding)
+    if (recurse && !x._1)
+      simplify(x._2, binding)
+    else
+      x._2
+  }
+
+  def simplify_any_compound2(outer_op:String, lhs:Value, c:Compound, binding:Map[Symbol, Value]):(Boolean,Value) = c match {
+    case Compound(inner_op, lhs1, rhs1) => {
+      /*println("Simplifying:")
+      debug_print(Compound(outer_op, lhs, c))*/
+
+      (outer_op, inner_op) match {
+        // Commutative operators
+        case ("*",_) | ("+",_) =>
+          (false,Compound(outer_op, Compound(inner_op, lhs1, rhs1), lhs))
+
+        // a - (b - c) => (a - b) + c
+        case ("-", "-") =>
+          (false,Compound("+", simplify(Compound("-", lhs, lhs1), binding), simplify(rhs1, binding)))
+
+        // Everything else
+        case otherwise => (true,Compound(outer_op, lhs, c))
+      }
+    }
+  }
+  
    def simplifyCompound_wrapper(v:Value, binding:Map[Symbol, Value]):Value = v match {
     case c:Compound => simplifyCompound(c, binding)
     case otherwise => v
