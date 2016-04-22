@@ -7,7 +7,7 @@ object MathCode {
   //* ALL Value SUBTYPES MUST IMPLEMENT THESE OPERATIONS:
   //***************************************************************************
   
-  sealed trait Value {
+  trait Value {
     def + (rhs: Value):Value
     def - (rhs: Value):Value
     def * (rhs: Value):Value
@@ -102,25 +102,7 @@ object MathCode {
       //return flattenCompoundToString(this) 
     }
   }
-  
-  
-  
-  /*
-   * Used an as intermediate data structure for simplifying compounds by Simplifier object. 
-   * This should not shine through to the user--they should not know of this data structure.
-   */
-  case class CompoundCluster(ops: List[String], children: List[Value]) extends Value {
-    
-    override def toString: String = return Simplifier.flattenCompoundClusterToString(this) 
-    
-    // These are useless and should not be used for now.
-    def + (rhs: Value): Value = null 
-    def - (rhs: Value): Value = null 
-    def * (rhs: Value): Value = null 
-    def / (rhs: Value): Value = null 
-    def ^ (rhs: Value): Value = null 
-    def OVER (rhs: Value): Value = null 
-  }
+ 
 
   //***************************************************************************
   //* IMPLICITS:
@@ -149,6 +131,8 @@ object MathCode {
   // The reason we implicitly cast symbols to Unbounds instead of Values, is so that we can defer symbol lookup until
   // we actually need it.
   implicit def symbolToUnbound(symbol:Symbol):Unbound = Unbound(symbol)
+  
+  //implicit def compoundClusterToCompound(cc:CompoundCluster):Compound = Simplifier.compoundClusterToCompound(cc)
 
   
   case class Variable(variableName:Symbol) {
@@ -226,6 +210,7 @@ object MathCode {
       case "/" => Compound("/", Compound("-", Compound("*", DERIVE(lhs,wrt), rhs), Compound("*", lhs, DERIVE(rhs,wrt))), Compound("^", rhs, NumberValue(2,1)))
       case "^" => rhs match {
         case nv:NumberValue => Compound("*", nv, Compound("^", lhs, nv - 1))
+        case otherwise => throw new Exception("not implemented")
       }
     }
   }
@@ -494,15 +479,7 @@ object MathCode {
     case c: Compound => true
     case otherwise => false
   }
-
   
-  /**
-   * Returns true iff the given Value is of type CompoundCluster.
-   */
-  def isCompoundClusterValue(value: Value): Boolean = value match {
-    case c: CompoundCluster => true
-    case otherwise => false
-  }
   
   /**
    * Returns true iff the given Value is of type Unbound.

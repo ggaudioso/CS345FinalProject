@@ -3,6 +3,25 @@ object Simplifier {
   
   import MathCode._
   
+    
+  
+  /*
+   * Used an as intermediate data structure for simplifying compounds by Simplifier object. 
+   * This should not shine through to the user--they should not know of this data structure.
+   */
+  case class CompoundCluster(ops: List[String], children: List[Value]) extends Value {
+    
+    override def toString: String = return Simplifier.flattenCompoundClusterToString(this) 
+    
+    // These are useless and should not be used for now.
+    def + (rhs: Value): Value = null 
+    def - (rhs: Value): Value = null 
+    def * (rhs: Value): Value = null 
+    def / (rhs: Value): Value = null 
+    def ^ (rhs: Value): Value = null 
+    def OVER (rhs: Value): Value = null 
+  }
+  
 
   def simplifier(v:Value, binding:Map[Symbol, Value]):Value = {
         simplifyCompound_wrapper(v, binding) match {
@@ -1036,5 +1055,11 @@ object Simplifier {
     
     // They are not both number values, so return a compound.
     return Compound(compound.op, newLhs, newRhs) 
+  }
+  
+  //Returns true iff the given Value is of type CompoundCluster.
+  def isCompoundClusterValue(value: Value): Boolean = value match {
+    case c: CompoundCluster => true
+    case otherwise => false
   }
 }
