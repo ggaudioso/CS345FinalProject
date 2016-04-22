@@ -230,7 +230,7 @@ object MathCode {
           // Then see if it is a piecewise function
           piecewiseFunctionMap.get(applier) match {
             case Some(sequence) => {
-              // Loop through all the comparisons until one is satisfied
+              // Loop through all the comparisons and see if they are all satisfied
               for((comparisons, implementation) <- sequence) {
                 var satisfied : Boolean = true
                 for (comparison <-comparisons){
