@@ -230,7 +230,7 @@ object MathCode {
           // Then see if it is a piecewise function
           piecewiseFunctionMap.get(applier) match {
             case Some(sequence) => {
-              // Loop through all the comparisons and see if they are all satisfied
+              // Loop through all the comparisons until one is satisfied
               for((comparisons, implementation) <- sequence) {
                 var satisfied : Boolean = true
                 for (comparison <-comparisons){
@@ -255,10 +255,8 @@ object MathCode {
   case class FunctionRegistration(functionName:Symbol) {
     case class Registrar(parameters:Symbol*) {
       def :=(expression:Value) {
-        for (parameter <- parameters) {
-          if((variableMap contains functionName) || (functionMap contains functionName) || (piecewiseFunctionMap contains functionName))
-            throw new Exception("Redefinition is now allowed!")
-        }
+        if((variableMap contains functionName) || (functionMap contains functionName) || (piecewiseFunctionMap contains functionName))
+          throw new Exception("Redefinition is now allowed!")
         ensureValueOnlyContainsUnboundWithSymbolicNames(expression, parameters)
         functionMap += (functionName -> new FunctionImplementation(parameters, expression))
       }
@@ -270,10 +268,8 @@ object MathCode {
         }
         
         def :=(expression:Value) {
-          for (parameter <- parameters) {
           if((variableMap contains functionName) || (functionMap contains functionName)) // don't check piecewise function map
             throw new Exception("Redefinition is now allowed!")
-          }
           ensureValueOnlyContainsUnboundWithSymbolicNames(expression, parameters)
           if(piecewiseFunctionMap contains functionName) {
             var functionImplementationSequence = piecewiseFunctionMap(functionName)
