@@ -1,9 +1,9 @@
-
+/**
+ * Methods and data structures dealing with simplification of Compound terms.
+ */
 object Simplifier {
   
   import MathCode._
-  
-    
   
   /*
    * Used an as intermediate data structure for simplifying compounds by Simplifier object. 
@@ -109,12 +109,13 @@ object Simplifier {
     }
   }
   
-   def simplifyCompound_wrapper(v:Value, binding:Map[Symbol, Value]):Value = v match {
+  def simplifyCompound_wrapper(v:Value, binding:Map[Symbol, Value]):Value = v match {
     case c:Compound => simplifyCompound(c, binding)
     case otherwise => v
   }
   
-    /**
+  
+  /**
    * Simplifies the given Compound, returns a CompoundCluster.
    */
   def simplifyCompoundtoCompoundCluster(compound: Compound, binding:Map[Symbol, Value]): Value = {
@@ -742,7 +743,6 @@ object Simplifier {
       }
     }
     
-    
     // If a group is simplified then it will not be able to be
     // grouped with its parent operator (i.e., a group of + and - cannot
     // group with a parent operator of * or /) unless the leaf group
@@ -804,6 +804,7 @@ object Simplifier {
     // return it.
     return groupToCompound(newChildren, cc.ops) 
   }
+  
   
   /**
    * Given a group of NumberValues and Unbounds, returns the proper
@@ -1026,6 +1027,7 @@ object Simplifier {
     return (compound.op :: rhsOpList).:::(lhsOpList) 
   }
   
+  
   /**
    * Given a Compound, simplify all sub-Compounds which are two NumberValues.
    */
@@ -1086,9 +1088,42 @@ object Simplifier {
     return Compound(compound.op, newLhs, newRhs) 
   }
   
-  //Returns true iff the given Value is of type CompoundCluster.
+  
+  /**
+   * Returns true iff the given Value is of type CompoundCluster.
+   */
   def isCompoundClusterValue(value: Value): Boolean = value match {
     case c: CompoundCluster => true
     case otherwise => false
   }
+  
+  
+  /**
+   * Given a Compound and a Binding, return a new Compound in which all unbound
+   * variables are replaced by their bindings, if such a binding
+   * exists.
+   */
+  def getCompoundGivenBinding(compound: Compound, binding:Map[Symbol, Value]): Value = {
+    
+    // The final new lhs and rhs for this compound. These are
+    // built recursively.
+    var newLhs: Value = null
+    var newRhs: Value = null
+    var op: String = compound.op
+    
+    newLhs = compound.lhs match {
+      case compound:Compound => getCompoundGivenBinding(compound, binding)
+      case numberValue:NumberValue => numberValue
+      case Unbound(unboundSymbol) => variableLookupFromBinding(unboundSymbol, binding)
+    }
+    
+    newRhs = compound.rhs match {
+      case compound:Compound => getCompoundGivenBinding(compound, binding)
+      case numberValue:NumberValue => numberValue
+      case Unbound(unboundSymbol) => variableLookupFromBinding(unboundSymbol, binding)
+    }
+    
+    return Compound(op, newLhs, newRhs) 
+  }
 }
+

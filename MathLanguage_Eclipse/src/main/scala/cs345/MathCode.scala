@@ -188,7 +188,7 @@ object MathCode {
         var argument : Value = value match {
           case nv:NumberValue => nv
           case Unbound(symbol) => variableLookupFromBinding(symbol, variableMap)
-          case compound:Compound => simplify(getCompoundGivenBinding(compound,  variableMap), variableMap)
+          case compound:Compound => simplify(Simplifier.getCompoundGivenBinding(compound,  variableMap), variableMap)
         }
 
         bindings += (parameter -> argument)
@@ -196,7 +196,7 @@ object MathCode {
       return expression match {
         case nv:NumberValue => nv
         case umbound:Unbound => variableLookupFromBinding(umbound.sym, bindings)
-        case compound:Compound => simplify(getCompoundGivenBinding(compound, bindings), bindings)
+        case compound:Compound => simplify(Simplifier.getCompoundGivenBinding(compound, bindings), bindings)
       }
     }
   }
@@ -237,7 +237,7 @@ object MathCode {
     case NumberValue(n,d) => println(n+"/"+d)
     case Unbound(sym) => println(sym) 
     case compound:Compound => {
-      PRINT(getCompoundGivenBinding(compound, variableMap))
+      PRINT(Simplifier.getCompoundGivenBinding(compound, variableMap))
       println
     }
   }
@@ -247,7 +247,7 @@ object MathCode {
     case NumberValue(n,d) => println(n.toDouble/d.toDouble)
     case Unbound(sym) => if (isknown(sym)) println(approx(sym)) else println(sym) 
     case compound:Compound => {
-      PRINTLN(getCompoundGivenBinding(compound, variableMap)) //approximate fix
+      PRINTLN(Simplifier.getCompoundGivenBinding(compound, variableMap)) //approximate fix
     }
   }
   
@@ -351,35 +351,6 @@ object MathCode {
     Simplifier.simplifier(v:Value, binding:Map[Symbol, Value])
   }
   
-  
-
-  /**
-   * Given a Compound and a Binding, return a new Compound in which all unbound
-   * variables are replaced by their bindings, if such a binding
-   * exists.
-   */
-  def getCompoundGivenBinding(compound: Compound, binding:Map[Symbol, Value]): Value = {
-    
-    // The final new lhs and rhs for this compound. These are
-    // built recursively.
-    var newLhs: Value = null
-    var newRhs: Value = null
-    var op: String = compound.op
-    
-    newLhs = compound.lhs match {
-      case compound:Compound => getCompoundGivenBinding(compound, binding)
-      case numberValue:NumberValue => numberValue
-      case Unbound(unboundSymbol) => variableLookupFromBinding(unboundSymbol, binding)
-    }
-    
-    newRhs = compound.rhs match {
-      case compound:Compound => getCompoundGivenBinding(compound, binding)
-      case numberValue:NumberValue => numberValue
-      case Unbound(unboundSymbol) => variableLookupFromBinding(unboundSymbol, binding)
-    }
-    
-    return Compound(op, newLhs, newRhs) 
-  }
 
   // Returns the LCM of a and b
   //def lcm(a:Int, b:Int):Int = a*b / gcd(a,b) 
