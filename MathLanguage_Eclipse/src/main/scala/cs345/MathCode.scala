@@ -215,22 +215,50 @@ object MathCode {
   //* PRINTING:
   //***************************************************************************
   
-  val operators : String = "+-*/^" //add more if needed later
-  val precedence = Array(4,4,3,3,2) //let's all stick to https://en.wikipedia.org/wiki/Order_of_operations
-  val precedenceMap = Map("+" -> precedence(0), "-" -> precedence(1), "*" -> precedence(2), "/" -> precedence(3), "^" -> precedence(4)) 
-
+  
   //pretty print: parenthesis only when needed
   def pprint(value:Value):Unit = value match {
-    case NumberValue(n,d) => if (d==1) println(n) else println(n+"/"+d)
-    case Unbound(sym) => println(sym.toString().substring(1))
-    case Compound(o,r,l) => pprinthelp(simplify(Compound(o,r,l),variableMap),false); println()
+    case NumberValue(n,d) => {
+      if (d==1) println(n) 
+      else println(n+"/"+d)
+    }
+    case Unbound(sym) => { 
+      if (variableMap contains sym) pprint(variableMap(sym)) 
+      else println((sym.toString).substring(1))
+    }
+    case Compound(o,r,l) => {
+      var bounded = Simplifier.getCompoundGivenBinding(Compound(o,r,l), variableMap)
+      pprinthelp(simplify(bounded,variableMap),false)
+      println
+    }
   }
   
   //approximate and pretty print: 
   //same as pretty print but approximates fractions and known variables such as e or pi
-  def aprint(value:Value):Unit = {
-    
+  def aprint(value:Value):Unit = value match {
+    case NumberValue(n,d) => { 
+      if (d!= 0) println(n.toDouble/d.toDouble) 
+      else if (n==0) println("undefined")
+      else println("inf")
+    }
+    case Unbound(sym) => { 
+      if (variableMap contains sym) aprint(variableMap(sym))
+      else if (knownVariables contains sym) aprint(knownVariables(sym))
+      else println((sym.toString).substring(1))
+    }
+    case Compound(o,r,l) => {
+      var bounded1 = Simplifier.getCompoundGivenBinding(Compound(o,r,l),variableMap)
+      var bounded2 = Simplifier.getCompoundGivenBinding(bounded1,knownVariables)
+      pprinthelp(simplify(bounded2,variableMap),true) 
+      println  
+    }
   }
+  
+  //pprint helpers
+  private val operators : String = "+-*/^" //add more if needed later
+  private val precedence = Array(4,4,3,3,2) //let's all stick to https://en.wikipedia.org/wiki/Order_of_operations
+  val precedenceMap = Map("+" -> precedence(0), "-" -> precedence(1), "*" -> precedence(2), "/" -> precedence(3), "^" -> precedence(4)) 
+  
   private def pprinthelp(value:Value, approximate:Boolean):Unit = value match {
     case NumberValue(n,d) => { 
       if (!approximate) { if (d==1) print(n) else print(n+"/"+d) }
@@ -277,68 +305,37 @@ object MathCode {
   
   
   //verose print: more parenthesis 
-  def vprint(value:Value):Unit = {
-    
+  def vprint(value:Value):Unit = value match {
+    case numberValue:NumberValue => printNumberValue(numberValue); println
+    case unbound:Unbound => printUnbound(unbound); println
+    case compound:Compound => printCompoundUsingFunction(compound, vprinthelp); println
   }
   
-  //PRINTLN syntax: PRINTLN(whatever)
-  def PRINTLN(value: Value): Unit =  {
-    PRINT(value)
-    println()
-  }
-  
-  //PRINT syntax: PRINT(whatever)
-  def PRINT(value: Value): Unit = simplify(value, variableMap) match {
+  //vprint helpers
+  private def vprinthelp(value: Value): Unit = simplify(value, variableMap) match {
     case numberValue:NumberValue => printNumberValue(numberValue)
     case unbound:Unbound => printUnbound(unbound)
-    case compound:Compound => printCompoundUsingFunction(compound, PRINT)
+    case compound:Compound => printCompoundUsingFunction(compound, vprinthelp)
   }
-  
-  // PRINTLN_EVALUATE syntax: PRINTLN_EVALUATE(whatever).. and evaluates the whatever exactly
-  def PRINTLN_EVALUATE(value: Value): Unit = value match {
-    case NumberValue(n,d) => println(n+"/"+d)
-    case Unbound(sym) => println(sym) 
-    case compound:Compound => {
-      PRINT(Simplifier.getCompoundGivenBinding(compound, variableMap))
-      println
-    }
-  }
-  
-  // PRINTLN_APPROXIMATE syntax: PRINTLN(whatever).. and evaluates the whatever exactly
-  def PRINTLN_APPROXIMATE(value: Value): Unit = value match {
-    case NumberValue(n,d) => println(n.toDouble/d.toDouble)
-    case Unbound(sym) => if (isknown(sym)) println(approx(sym)) else println(sym) 
-    case compound:Compound => {
-      PRINTLN(Simplifier.getCompoundGivenBinding(compound, variableMap)) //approximate fix
-    }
-  }
-  
-  def printWithUnevaluatedUnbounds(value:Value): Unit = value match {
+
+  private def printWithUnevaluatedUnbounds(value:Value): Unit = value match {
     case numberValue:NumberValue => printNumberValue(numberValue)
     case unbound:Unbound => print(unbound.sym)
     case compound:Compound => printCompoundUsingFunction(compound, printWithUnevaluatedUnbounds(_))
   }
   
-  // PRINTSTRING syntax: PRINTSTRING(myString: String)
-  def PRINTSTRING(value : String): Unit = println(value)
-  
-  def printNumberValue(numberValue:NumberValue) : Unit = {
-    if (numberValue.den == 1)
-      print(numberValue.num)
-    else
-      print(numberValue.num + "/" + numberValue.den)
+  private def printNumberValue(numberValue:NumberValue) : Unit = {
+    if (numberValue.den == 1) print(numberValue.num)
+    else print(numberValue.num + "/" + numberValue.den)
   }
   
-  def printUnbound(unbound:Unbound) : Unit = {
-    if (variableMap contains unbound.sym)
-      PRINT(variableMap(unbound.sym))
-    else if (functionMap contains unbound.sym)
-      printFunction(unbound.sym, functionMap(unbound.sym))
-    else
-      print(unbound.sym)
+  private def printUnbound(unbound:Unbound) : Unit = {
+    if (variableMap contains unbound.sym)  vprinthelp(variableMap(unbound.sym))
+    else if (functionMap contains unbound.sym) printFunction(unbound.sym, functionMap(unbound.sym))
+    else print(unbound.sym)
   }
   
-  def printCompoundUsingFunction(compound:Compound, function:(Value) => Unit) : Unit = {
+  private def printCompoundUsingFunction(compound:Compound, function:(Value) => Unit) : Unit = {
     print("(")
     function(compound.lhs)
     print(" " + compound.op + " ")
@@ -346,11 +343,12 @@ object MathCode {
     print(")")
   }
   
-  def printFunction(functionName:Symbol, functionImplementation:FunctionImplementation) : Unit = {
+  private def printFunction(functionName:Symbol, functionImplementation:FunctionImplementation) : Unit = {
     print("Function " + functionName.toString() + " takes in " + functionImplementation.parameters)
     print(" and is defined as ")
     printWithUnevaluatedUnbounds(functionImplementation.expression)
   }
+ 
   
  //*****************************************************************
  //* STUFF TO DEAL WITH VARIABLES:
@@ -362,18 +360,7 @@ object MathCode {
   
   //known values such as pi, e .. can add more
   //if we increase precision, increase precision of these as well.. but not too much or operations with lots of these wil overflow and mess up
-  var knownVariables:Map[Symbol,Double] = Map(('e,2.7182), ('pi,3.1415))
-  
-  //checks if symbol is known
-  def isknown(sym:Symbol): Boolean = {
-    knownVariables.contains(sym)
-  }
-    
-  //returns approximation of known symbols
-  def approx(sym:Symbol): Double = knownVariables.get(sym) match {
-    case Some(value) => value
-    case None => 0.0 //your risk if you call on unknown symbol
-  }
+  var knownVariables:Map[Symbol,Value] = Map(('e,2.7182), ('pi,3.1415))
   
   //look up a variable given the binding
   def variableLookupFromBinding(sym:Symbol, binding:Map[Symbol, Value]):Value = {
@@ -502,12 +489,5 @@ object MathCode {
     case u: Unbound => true
     case otherwise => false
   }
-  
-  /**
-   * Gets symbol out of Unbound.
-   */
-  def getSym(value: Value): Symbol = value match {
-    case Unbound(s) => s
-    case otherwise => 'youwrong //your risk to call this on st that is not unbound
-  }
+
 }

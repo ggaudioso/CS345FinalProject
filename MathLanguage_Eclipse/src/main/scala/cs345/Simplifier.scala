@@ -1103,7 +1103,7 @@ object Simplifier {
    * variables are replaced by their bindings, if such a binding
    * exists.
    */
-  def getCompoundGivenBinding(compound: Compound, binding:Map[Symbol, Value]): Value = {
+  def getCompoundGivenBinding(compound: Compound, binding:Map[Symbol, Value]): Compound = {
     
     // The final new lhs and rhs for this compound. These are
     // built recursively.
