@@ -144,11 +144,7 @@ object MathCode {
       variableMap += (variableName -> simplify(value, variableMap))
     }
   }
-  
-  val operators : String = "+-*/^" //add more if needed later
-  val precedence = Array(4,4,3,3,2) //let's all stick to https://en.wikipedia.org/wiki/Order_of_operations
-  val precedenceMap = Map("+" -> precedence(0), "-" -> precedence(1), "*" -> precedence(2), "/" -> precedence(3), "^" -> precedence(4)) 
-  
+    
   case class Function(val applier:Symbol) {
     def apply(arguments:Value*): Value  = {
       functionMap.get(applier) match {
@@ -218,6 +214,72 @@ object MathCode {
   //***************************************************************************
   //* PRINTING:
   //***************************************************************************
+  
+  val operators : String = "+-*/^" //add more if needed later
+  val precedence = Array(4,4,3,3,2) //let's all stick to https://en.wikipedia.org/wiki/Order_of_operations
+  val precedenceMap = Map("+" -> precedence(0), "-" -> precedence(1), "*" -> precedence(2), "/" -> precedence(3), "^" -> precedence(4)) 
+
+  //pretty print: parenthesis only when needed
+  def pprint(value:Value):Unit = value match {
+    case NumberValue(n,d) => if (d==1) println(n) else println(n+"/"+d)
+    case Unbound(sym) => println(sym.toString().substring(1))
+    case Compound(o,r,l) => pprinthelp(simplify(Compound(o,r,l),variableMap),false); println()
+  }
+  
+  //approximate and pretty print: 
+  //same as pretty print but approximates fractions and known variables such as e or pi
+  def aprint(value:Value):Unit = {
+    
+  }
+  private def pprinthelp(value:Value, approximate:Boolean):Unit = value match {
+    case NumberValue(n,d) => { 
+      if (!approximate) { if (d==1) print(n) else print(n+"/"+d) }
+      else print(n.toDouble/d.toDouble) 
+    }
+    case Unbound(sym) => print(sym.toString().substring(1))
+    case Compound(op,lhs,rhs) => {
+      if (op.equals("-") && isNumberValue(lhs) && getNum(lhs) == 0) {
+        print(op)
+        if (isCompound(rhs)) {
+          print("(")
+          pprinthelp(rhs,approximate)
+          print(")")
+        }
+        else 
+          pprinthelp(rhs,approximate)
+        return
+      }
+      var parlhs = false 
+      var parrhs = false
+      lhs match {
+        case Compound(lop,llhs,lrhs) => {
+          if (precedence(operators.indexOf(lop)) > precedence(operators.indexOf(op))) 
+            parlhs = true
+        }
+        case _ => parlhs = false
+      }
+      rhs match {
+        case Compound(rop,rlhs,rrhs) => {
+          if (precedence(operators.indexOf(rop)) > precedence(operators.indexOf(op)))
+            parrhs = true
+        }
+        case _ => parrhs = false
+      }
+      if (parlhs) print("(")
+      pprinthelp(lhs,approximate)
+      if (parlhs) print(")")
+      print(" " + op + " ")
+      if (parrhs) print("(")
+      pprinthelp(rhs,approximate)
+      if (parrhs) print(")")     
+    } 
+  }
+  
+  
+  //verose print: more parenthesis 
+  def vprint(value:Value):Unit = {
+    
+  }
   
   //PRINTLN syntax: PRINTLN(whatever)
   def PRINTLN(value: Value): Unit =  {

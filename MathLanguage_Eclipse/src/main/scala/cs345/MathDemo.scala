@@ -109,10 +109,19 @@ object MathDemo {
     PRINTLN('p)
 
     println
+    println(".")
     PRINTLN(DERIVE('w + (5*'w^3), 'w))
+    pprint(DERIVE('w + (5*'w^3), 'w))
+    println(".")
     PRINTLN(DERIVE('w + 5*'w^3, 'w))
+    pprint(DERIVE('w + 5*'w^3, 'w))
+    println(".")
     PRINTLN('w + 5*'w^3)
+    pprint('w + 5*'w^3)
+    println(".")
     PRINTLN('x)
+    pprint('x)
+    println(".")
     println
     PRINTLN('x + 5*'x^3)
     'd := 'x + 5*'x^3
