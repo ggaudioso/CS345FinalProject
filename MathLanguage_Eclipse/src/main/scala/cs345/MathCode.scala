@@ -388,7 +388,10 @@ object MathCode {
     }
   }
   
-  //Returns true iff the given compound is made purely of NumberValues.
+  
+  /**
+   * Returns true iff the given compound is made purely of NumberValues.
+   */
   def allNumberValues(compound: Value): Boolean = compound match {
     case NumberValue(_,_) => true
     case Unbound(_) => false
@@ -396,26 +399,34 @@ object MathCode {
   }
 
   
-  //Returns true iff the given Value is of type NumberValue
+  /**
+   * Returns true iff the given Value is of type NumberValue.
+   */
   def isNumberValue(value: Value): Boolean = value match {
     case NumberValue(n,d) => true
     case otherwise => false
   }
   
-  //gets numerator out of fraction
+  /**
+   * Gets numerator out of fraction.
+   */
   def getNum(value: Value): BigInt = value match {
     case NumberValue(n,d) => n
     case otherwise => 0 //your risk to call this on st that is not numbervalue
   }
   
-  //gets numerator out of fraction
+  /**
+   * Gets denominator out of fraction.
+   */
   def getDen(value: Value): BigInt = value match {
     case NumberValue(n,d) => d
     case otherwise => 0 //your risk to call this on st that is not numbervalue
   }
   
   
-  //Returns true iff the given Value is of type Compound.
+  /**
+   * Returns true iff the given Value is of type Compound.
+   */
   def isCompound(value: Value): Boolean = value match {
     case c: Compound => true
     case otherwise => false
@@ -430,7 +441,9 @@ object MathCode {
     case otherwise => false
   }
   
-  //gets symbol out of unbound
+  /**
+   * Gets symbol out of Unbound.
+   */
   def getSym(value: Value): Symbol = value match {
     case Unbound(s) => s
     case otherwise => 'youwrong //your risk to call this on st that is not unbound
