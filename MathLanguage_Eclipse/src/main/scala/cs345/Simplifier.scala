@@ -33,6 +33,8 @@ object Simplifier {
       case NumberValue(n,d) => {
         if (n == 0) {
           NumberValue(0,1)
+        } else if (d == 1) {
+          NumberValue(n,d)
         } else {
           val g = gcd(n,d)
           NumberValue(n / g, d / g)
