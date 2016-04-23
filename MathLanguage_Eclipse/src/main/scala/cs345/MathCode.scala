@@ -597,6 +597,17 @@ object MathCode {
       }
     }
     case Unbound(sym) => print(sym.toString().substring(1))
+    /*case Compound("-",NumberValue(IntBig(0),_),rhs) => {
+      print("-")
+      rhs match {
+        case c:Compound => {
+          print("(")
+          pprinthelp(rhs,approximate)
+          print(")")
+        }
+        case otherwise => pprinthelp(rhs,approximate)
+      }
+    }*/
     case Compound(op,lhs,rhs) => {
       if (op.equals("-") && isNumberValue(lhs) && getNum(lhs) == 0) {
         print(op)
