@@ -69,18 +69,26 @@ object MathDemo {
     println("****************************************");
     pprint(solve(5-2*'x,'a/'b,'x))
     println
+    
+    println("****************************************");
+    println("* Examples of limits")
+    println("****************************************");
+    aprint(limit('n/('n-6),'n,6))
+    aprint(limit(('n+3)/'n,'n,'Infinity))
+    
+    
   }
 
   def main(args: Array[String]):Unit = {  
+    
     
     demo    //comment if you don't want to see, but leave it uncommented in committed code
     //pretty examples go in the demo
     //your own testing goes here BUT is moved after the return before commit because I might not want to see it :)
     
-    
     return //move examples in demo, see google doc :D
     
-        'g of 'x := -(2*'x + 2)
+    'g of 'x := -(2*'x + 2)
     pprint(derive('g('x),'x))
 
     println

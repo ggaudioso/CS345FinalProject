@@ -36,7 +36,7 @@ object Simplifier {
         v2 match {
     //v match {
       case NumberValue(n,d) => {
-        if (n == 0) {
+        if (n == 0 && d!=0) {
           NumberValue(0,1)
         } else {
           val g = gcd(n,d)
