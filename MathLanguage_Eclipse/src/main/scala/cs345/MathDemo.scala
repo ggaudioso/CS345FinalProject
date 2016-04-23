@@ -4,41 +4,59 @@ object MathDemo {
   
   def demo = {
     
-    println("examples of print")
+    println("***********************************");
+    println("* Examples of print")
+    println("***********************************");
     //print examples:
      'print := 'a + 4 + 'b
     //1. pretty print
     pprint('print*2 -1)
-    //2. approximator print
+    //2. approximate print
     aprint(1 OVER 3 + 'e) 
     //3. verbose print (old PRINTLN)
     vprint('print*2 -1)
     println
     
-    println("examples of simplification")
+    println("***********************************");
+    println("* Examples of simplification")
+    println("***********************************");
     //simplification of fractions and conversion of doubles
     pprint(100 OVER 5)
     pprint(3.14)
     println
     
-    println("examples of derivation")
-    //derivation
+    // TODO: Add the examples from the doc (which are also in Mike's
+    // regression tests.  Note: Many of them do not work currently
+    // due to bugs in simplify().
+    
+    println("***********************************");
+    println("* Examples of derivation")
+    println("***********************************");
     'f of 'x := -(2*'x + 2)
+    print("Function:   ");
     pprint('f('x))
-    pprint(derive('f('x),'x))
+    print("Derivative: ");
+    pprint(derive('f('x), 'x))
     println
     
-    println("examples of indefinite integrals")
-    pprint(integrate('x^2,'x))
-    pprint(integrate('x*2,'x))
+    println("****************************************");
+    println("* Examples of indefinite integrals")
+    println("****************************************");
+    pprint(integrate('x^2, 'x))
+    pprint(integrate('x*2, 'x))
     println
     
-    println("examples of definite integrals")
-    pprint(integral('x,'x,'a,'b))
-    aprint(integral('x,'x,0,5))
+    println("****************************************");
+    println("* Examples of definite integrals")
+    println("****************************************");
+    pprint(integral('x, 'x, 'a, 'b))
+    print("Integral on [0, 5]: ");
+    aprint(integral('x, 'x, 0, 5))
     println
  
-    println("examples of piecewise functions")
+    println("****************************************");
+    println("* Examples of piecewise functions")
+    println("****************************************");
     // Piecewise
     'p of ('x, 'y) when ('x + 1 === 0 + 'y, 'x > 0) := 0
     'p of ('x, 'y) when ('x !== 0) := 1 / 'x
@@ -67,15 +85,19 @@ object MathDemo {
     pprint(2*'a-2*'a)
     pprint('a+'a-'a)
     pprint('a+1+1)
+    println
+    
 
-    println("examples of solving simple equation")
+    println("****************************************");
+    println("* Examples of solving a simple equation")
+    println("****************************************");
     pprint(solve(5-2*'x,'a/'b,'x))
     println
   }
 
   def main(args: Array[String]):Unit = {  
     
-    //demo
+    demo
     
     
     return //move examples in demo, see google doc :D
