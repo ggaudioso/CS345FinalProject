@@ -24,9 +24,12 @@ object MathDemo {
     
     println
     println
-    
-    'f of 'x := -(2*'x + 2)
-    pprint(derive('f('x),'x))
+
+    // Piecewise
+    'p of ('x, 'y) when ('x + 1 === 0 + 'y, 'x > 0) := 0
+    'p of ('x, 'y) when ('x !== 0) := 1 / 'x
+    pprint('p(45, 46))
+    pprint('p(4, 8))
     
     return //move examples before the return, see google doc :D
     
@@ -83,6 +86,12 @@ object MathDemo {
     'd := 'x + 5*'x^3
     vprint('d)
     
-
+    'abc of ('x, 'y) when ('x + 1 === 0 + 'y, 'x > 0) := 0
+    'abc of ('x, 'y) when ('x !== 0) := 1 / 'x
+    
+    'test := 45
+    
+    pprint('abc('test + 5, 46))
+    pprint('abc(4, 8))
   }
 }
