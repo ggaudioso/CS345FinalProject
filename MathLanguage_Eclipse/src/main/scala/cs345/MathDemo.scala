@@ -13,9 +13,20 @@ object MathDemo {
     //3. verbose print (old PRINTLN)
     vprint('print*2 -1)
     
-    //simplification of fractions, and conversion of doubles
+    //simplification of fractions and conversion of doubles
     pprint(100 OVER 5)
     pprint(3.14)
+    
+    //derivation
+    'f of 'x := -(2*'x + 2)
+    pprint(derive('f('x),'x))
+    
+    
+    println
+    println
+    
+    'f of 'x := -(2*'x + 2)
+    pprint(derive('f('x),'x))
     
     return //move examples before the return, see google doc :D
     
@@ -63,8 +74,8 @@ object MathDemo {
     vprint('p)
 
     println
-    vprint(DERIVE('w + (5*'w^3), 'w))
-    vprint(DERIVE('w + 5*'w^3, 'w))
+    vprint(derive('w + (5*'w^3), 'w))
+    vprint(derive('w + 5*'w^3, 'w))
     vprint('w + 5*'w^3)
     vprint('x)
     println

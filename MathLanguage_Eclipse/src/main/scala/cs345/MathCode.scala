@@ -28,20 +28,20 @@ object MathCode {
   case class NumberValue(val num:BigInt, val den:BigInt) extends Value {
     def + (rhs: Value):Value = rhs match {
       case NumberValue(num2,den2) => numsimplify(NumberValue(num*den2 + num2*den,den*den2))
-      case Unbound(sym) => simplify(Compound("+", this, sym))
-      case c:Compound => simplify(Compound("+", this, c))
+      case Unbound(sym) => Compound("+", this, sym)
+      case c:Compound => Compound("+", this, c)
     }
     def - (rhs: Value):Value = rhs match {
       case NumberValue(num2,den2) => numsimplify(NumberValue(num*den2 - num2*den,den*den2))
-      case otherwise => simplify(Compound("-", this, rhs))
+      case otherwise => Compound("-", this, rhs)
     }
     def * (rhs: Value):Value = rhs match {
       case NumberValue(num2,den2) => numsimplify(NumberValue(num2*num, den2*den))
-      case otherwise => simplify(Compound("*", this, rhs))
+      case otherwise => Compound("*", this, rhs)
     }
     def / (rhs: Value):Value = rhs match {
       case NumberValue(num2,den2) => numsimplify(NumberValue(num*den2, num2*den))
-      case otherwise => simplify(Compound("/", this, rhs))
+      case otherwise => Compound("/", this, rhs)
     }
     def ^ (rhs: Value):Value = rhs match {
       case NumberValue(num2,den2) => {
@@ -54,7 +54,7 @@ object MathCode {
     }
     def OVER (rhs: Value):Value = rhs match {
       case NumberValue(num2,den2) => numsimplify(NumberValue(num*den2, den*num2))
-      case otherwise => simplify(Compound("/", this, rhs))
+      case otherwise => Compound("/", this, rhs)
     }
     
     override def toString(): String = {
@@ -68,12 +68,12 @@ object MathCode {
   
   //unbound variables
   case class Unbound(val sym:Symbol) extends Value {
-    def + (rhs: Value): Value = simplify(Compound("+",this, rhs))
-    def - (rhs: Value): Value = simplify(Compound("-",this, rhs))
-    def * (rhs: Value): Value = simplify(Compound("*",this, rhs))
-    def / (rhs: Value): Value = simplify(Compound("/",this, rhs))
-    def ^ (rhs: Value): Value = simplify(Compound("^", this, rhs))
-    def OVER (rhs: Value): Value = simplify(Compound("/", this, rhs))
+    def + (rhs: Value): Value = Compound("+",this, rhs)
+    def - (rhs: Value): Value = Compound("-",this, rhs)
+    def * (rhs: Value): Value = Compound("*",this, rhs)
+    def / (rhs: Value): Value = Compound("/",this, rhs)
+    def ^ (rhs: Value): Value = Compound("^", this, rhs)
+    def OVER (rhs: Value): Value = Compound("/", this, rhs)
     
     // Gets rid of '.
     override def toString(): String = return (sym.toString).substring(1) 
@@ -82,12 +82,12 @@ object MathCode {
    
   //expressions with unbound variables 
   case class Compound(val op: String, val lhs: Value, val rhs: Value) extends Value {
-    def + (rhs: Value): Value = simplify(Compound("+", this, rhs))
-    def - (rhs: Value): Value = simplify(Compound("-", this, rhs))
-    def * (rhs: Value): Value = simplify(Compound("*", this, rhs))
-    def / (rhs: Value): Value = simplify(Compound("/", this, rhs))
-    def ^ (rhs: Value): Value = simplify(Compound("^", this, rhs))
-    def OVER (rhs: Value): Value = simplify(Compound("/", this, rhs))
+    def + (rhs: Value): Value = Compound("+", this, rhs)
+    def - (rhs: Value): Value = Compound("-", this, rhs)
+    def * (rhs: Value): Value = Compound("*", this, rhs)
+    def / (rhs: Value): Value = Compound("/", this, rhs)
+    def ^ (rhs: Value): Value = Compound("^", this, rhs)
+    def OVER (rhs: Value): Value = Compound("/", this, rhs)
     
     
     override def toString(): String = {
@@ -134,6 +134,10 @@ object MathCode {
   
   //implicit def compoundClusterToCompound(cc:CompoundCluster):Compound = Simplifier.compoundClusterToCompound(cc)
 
+  
+  //***************************************************************************
+  //* FUNCTIONS:
+  //***************************************************************************  
   
   case class Variable(variableName:Symbol) {
     def :=(value:Value) : Unit= {
@@ -196,8 +200,17 @@ object MathCode {
       }
     }
   }
-
-  def DERIVE(expr:Value, wrt:Symbol): Value = expr match {
+  
+  
+  //***************************************************************************
+  //* INSTRUCTIONS:
+  //***************************************************************************
+  
+  //derives an expression with respect to a variable
+  def derive(expr:Value, wrt:Symbol): Value = {
+    return simplify(DERIVE(expr:Value, wrt:Symbol))
+  }
+  private def DERIVE(expr:Value, wrt:Symbol): Value = expr match {
     case NumberValue(_,_) => 0
     case Unbound(sym) => if (sym == wrt) 1 else 0
     case Compound(op, lhs, rhs) => op match {
@@ -211,10 +224,41 @@ object MathCode {
     }
   }
   
+  
+  //solves lhs=rhs to return wrt = expression (pulls out wrt)
+  //assumes wrt appears once total
+//  def solve(lhs:Value,rhs:Value,wrt:Symbol):Value = {
+//    if (isUnbound(lhs) && getSym(lhs).equals(wrt)) return rhs
+//    if (isUnbound(rhs) && getSym(rhs).equals(wrt)) return lhs
+//    if (ishere(lhs,wrt) == ishere(rhs,wrt)) throw new Exception("Variable must appear exactly once")
+//    else { //can solve
+//       if (ishere(lhs,wrt)) return solver(lhs,rhs,wrt)
+//       else return solver(rhs,lhs,wrt)
+//    }
+//  }
+//  private def ishere(where:Value, what:Symbol): Boolean = where match {
+//    case NumberValue(n,d) => false
+//    case Unbound(sym) => what.equals(sym)
+//    case Compound(op,lhs,rhs) => {
+//      var left = ishere(lhs,what)
+//      var right = ishere(rhs,what)
+//      return (left||right) && !(left&&right)  //exclusive or
+//    }
+//  }
+//  private var solveops = "+-*/"
+//  private var oppositeop = "-+/*"
+//  private def solver(lhs:Value,rhs:Value,wrt:Symbol):Value = {
+//    
+//  }
+//  private def find(lhs:Value,what:Symbol) = lhs match {
+//    
+//  }
+  
+  
+  
   //***************************************************************************
   //* PRINTING:
   //***************************************************************************
-  
   
   //pretty print: parenthesis only when needed
   def pprint(value:Value):Unit = value match {
@@ -475,6 +519,11 @@ object MathCode {
   def isUnbound(value: Value): Boolean = value match {
     case u: Unbound => true
     case otherwise => false
+  }
+  
+  def getSym(value: Value): Symbol = value match {
+    case Unbound(sym) => sym
+    case otherwise => 'youwrong //your risk to call this on st that is not numbervalue
   }
 
 }
