@@ -323,9 +323,56 @@ object MathCode {
       case "*" => Compound("+", Compound("*", DERIVE(lhs, wrt), rhs), Compound("*", lhs, DERIVE(rhs, wrt)))
       case "+"|"-" => Compound(op, DERIVE(lhs, wrt), DERIVE(rhs, wrt))
       case "/" => Compound("/", Compound("-", Compound("*", DERIVE(lhs,wrt), rhs), Compound("*", lhs, DERIVE(rhs,wrt))), Compound("^", rhs, NumberValue(2,1)))
-      case "^" => rhs match {
-        case nv:NumberValue => Compound("*", nv, Compound("^", lhs, nv - 1))
-        case otherwise => throw new Exception("not implemented")
+      case "^" =>  {
+        if (ishere(lhs,wrt) && !ishere(rhs,wrt))
+          Compound("*", DERIVE(lhs,wrt),Compound("*",rhs,Compound("^",lhs,Compound("-",rhs,1))))
+        else if (!ishere(lhs,wrt) && !ishere(rhs,wrt))
+          0
+        else throw new Exception("derivative not implemented")
+      }
+    }
+  }
+  
+  
+    
+  //derives an expression with respect to a variable
+  def integrate(expr:Value, wrt:Symbol): Value = {
+    return simplify(INTEGRATE(expr:Value, wrt:Symbol))
+  }
+  private def INTEGRATE(expr:Value, wrt:Symbol): Value = expr match {
+    case NumberValue(n,d) => Compound("*", NumberValue(n,d),wrt)
+    case Unbound(sym) => { 
+      if (sym == wrt) Compound("/",Compound("^",wrt,2),2)
+      else Compound("*",Unbound(sym),wrt)
+    }
+    case Compound(op, lhs, rhs) => op match {
+      case "*" => {
+        if (ishere(lhs,wrt) && !ishere(rhs,wrt)) //rhs constant
+          Compound("*",rhs,INTEGRATE(lhs,wrt))
+        else if (ishere(rhs,wrt) && !ishere(lhs,wrt)) //lhs constant
+          Compound("*",lhs,INTEGRATE(rhs,wrt))
+        else if (!ishere(rhs,wrt) && !ishere(lhs,wrt)) //all constant
+          Compound("*",Compound("*",lhs,rhs),wrt)
+        else 
+          throw new Exception("product not implemented")
+      }
+      case "+"|"-" => Compound(op, INTEGRATE(lhs, wrt), INTEGRATE(rhs, wrt))
+      case "/" => {
+        if (ishere(lhs,wrt) && !ishere(rhs,wrt)) //rhs constant
+          Compound("/",INTEGRATE(lhs,wrt),rhs)
+        else if (ishere(rhs,wrt) && !ishere(lhs,wrt)) //lhs constant
+          throw new Exception("variable in denumerator not implemented")
+        else if (!ishere(rhs,wrt) && !ishere(lhs,wrt)) //all constant
+          Compound("*",Compound("*",lhs,rhs),wrt)
+        else 
+          throw new Exception("division not implemented")
+      }
+      case "^" =>  {
+        if (ishere(lhs,wrt) && !ishere(rhs,wrt))
+          Compound("/", Compound("/",Compound("^",lhs,Compound("+",rhs,1)),Compound("+",rhs,1)) ,DERIVE(lhs,wrt))
+        else if (!ishere(lhs,wrt) && !ishere(rhs,wrt))
+          Compound("*",Compound(op, lhs, rhs),wrt)
+        else throw new Exception("integral not implemented")
       }
     }
   }

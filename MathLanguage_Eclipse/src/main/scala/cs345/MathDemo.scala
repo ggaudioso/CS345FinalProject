@@ -27,6 +27,11 @@ object MathDemo {
     pprint('f('x))
     pprint(derive('f('x),'x))
     println
+    
+    println("examples of integration")
+    pprint(integrate('x^2,'x))
+    pprint(integrate('x*2,'x))
+    println
  
     println("examples of piecewise functions")
     // Piecewise
@@ -43,7 +48,10 @@ object MathDemo {
 
   def main(args: Array[String]):Unit = {  
     
-    demo
+    //demo
+ 
+    
+      
     
     return //move examples in demo, see google doc :D
     
