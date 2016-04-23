@@ -380,7 +380,7 @@ object MathCode {
   }
   
   //solves definite integral
-  def integral(expr:Value,wrt:Symbol,a:Value,b:Value):Value = {
+  def integrate(expr:Value,wrt:Symbol,a:Value,b:Value):Value = {
     if (isNumberValue(a) && isNumberValue(b))
       intapprox(expr,wrt,getNum(a).toDouble/getDen(a).toDouble,getNum(b).toDouble/getDen(b).toDouble)
     else {
