@@ -5,7 +5,7 @@ object MathDemo {
   def demo = {
     
     println("***********************************");
-    println("* Examples of print")
+    println("* Examples of print and Compounds")
     println("***********************************");
     //print examples:
      'print := 'a + 4 + 'b
@@ -15,6 +15,15 @@ object MathDemo {
     aprint(1 OVER 3 + 'e) 
     //3. verbose print (old PRINTLN)
     vprint('print*2 -1)
+    println
+    
+    println("***********************************");
+    println("* Examples of predefined variables")
+    println("***********************************");
+    pprint('e)
+    aprint('e)
+    pprint('pi)
+    aprint('pi)
     println
     
     println("***********************************");
