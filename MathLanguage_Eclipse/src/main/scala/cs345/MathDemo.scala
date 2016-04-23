@@ -44,6 +44,8 @@ object MathDemo {
     pprint('a*1)
     pprint('a+0)
     pprint(2*'a-2*'a)
+    pprint('a+'a-'a)
+    pprint('a+1+1)
     
     return //move examples before the return, see google doc :D
     
