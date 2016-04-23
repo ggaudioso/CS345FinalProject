@@ -254,8 +254,8 @@ object MathCode {
   case class FunctionRegistration(functionName:Symbol) {
     case class Registrar(parameters:Symbol*) {
       def :=(expression:Value) {
-        if((variableMap contains functionName) || (functionMap contains functionName) || (piecewiseFunctionMap contains functionName))
-          throw new Exception("Redefinition is now allowed!")
+        if((variableMap contains functionName) || (functionMap contains functionName))
+          throw new Exception("Redefinition is not allowed!")
         ensureValueOnlyContainsUnboundWithSymbolicNames(expression, parameters)
         functionMap += (functionName -> new FunctionImplementation(parameters, expression))
       }
