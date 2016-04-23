@@ -273,9 +273,8 @@ object MathCode {
           if(piecewiseFunctionMap contains functionName) {
             var functionImplementationSequence = piecewiseFunctionMap(functionName)
             
-            // We should make sure this definition has the same number of parameters as the first (we could check all, but we rely on transitivity)
-            if(functionImplementationSequence(0)._2.parameters.length != parameters.length) {
-              throw new Exception("Each Piecewise function defintition must have the same number of parameters!")
+            if(functionImplementationSequence(0)._2.parameters != parameters) {
+              throw new Exception("Each Piecewise function defintition must have the exact same parameters!")
             }
             
             piecewiseFunctionMap = piecewiseFunctionMap - functionName // take it out
