@@ -328,6 +328,8 @@ object MathCode {
           Compound("*", DERIVE(lhs,wrt),Compound("*",rhs,Compound("^",lhs,Compound("-",rhs,1))))
         else if (!ishere(lhs,wrt) && !ishere(rhs,wrt))
           0
+        else if (!ishere(lhs,wrt) && ishere(rhs,wrt))
+          Compound("*",Compound(op, lhs, rhs), Compound("*",DERIVE(rhs,wrt),Compound("^",'ln,lhs))) //ln^x means ln(x)
         else throw new Exception("derivative not implemented")
       }
     }
@@ -548,6 +550,12 @@ object MathCode {
         else 
           pprinthelp(rhs,approximate)
         return
+      }
+      else if (op.equals("^") && isUnbound(lhs) && getSym(lhs)=='ln) {
+          print("ln(")
+          pprinthelp(rhs,false)
+          print(")")
+          return
       }
       var parlhs = false 
       var parrhs = false
