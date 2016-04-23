@@ -551,11 +551,33 @@ object MathCode {
           pprinthelp(rhs,approximate)
         return
       }
-      else if (op.equals("^") && isUnbound(lhs) && getSym(lhs)=='ln) {
+      if (op.equals("^") && isUnbound(lhs) && getSym(lhs)=='ln) {
           print("ln(")
-          pprinthelp(rhs,false)
+          pprinthelp(rhs,approximate)
           print(")")
           return
+      }
+      if (op.equals("*") && ( (isNumberValue(rhs) && getNum(rhs)==0) || (isNumberValue(lhs) && getNum(lhs)==0) ) ) {
+        return
+      }  
+      if (op.equals("*") && ( (isNumberValue(rhs) && getNum(rhs)==0) || (isNumberValue(lhs) && getNum(lhs)==0) ) ) {
+        return
+      } 
+      if (op.equals("*") && isNumberValue(rhs) && getNum(rhs)==getDen(rhs) ) {
+        pprinthelp(lhs,approximate)
+        return
+      }
+      if (op.equals("*") && isNumberValue(lhs) && getNum(lhs)==getDen(lhs) ) {
+        pprinthelp(rhs,approximate)
+        return
+      }
+      if (op.equals("+") && isNumberValue(lhs) && getNum(lhs)==0 ) {
+        pprinthelp(rhs,approximate)
+        return
+      }
+      if (op.equals("+") && isNumberValue(rhs) && getNum(rhs)==0 ) {
+        pprinthelp(lhs,approximate)
+        return
       }
       var parlhs = false 
       var parrhs = false
