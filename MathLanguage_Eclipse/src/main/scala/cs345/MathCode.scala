@@ -27,33 +27,33 @@ object MathCode {
   // Namely, a known number that isn't irrational
   case class NumberValue(val num:BigInt, val den:BigInt) extends Value {
     def + (rhs: Value):Value = rhs match {
-      case NumberValue(num2,den2) => numsimplify(NumberValue(num*den2 + num2*den,den*den2))
+      case NumberValue(num2,den2) => simplify(NumberValue(num*den2 + num2*den,den*den2))
       case Unbound(sym) => Compound("+", this, sym)
       case c:Compound => Compound("+", this, c)
     }
     def - (rhs: Value):Value = rhs match {
-      case NumberValue(num2,den2) => numsimplify(NumberValue(num*den2 - num2*den,den*den2))
+      case NumberValue(num2,den2) => simplify(NumberValue(num*den2 - num2*den,den*den2))
       case otherwise => Compound("-", this, rhs)
     }
     def * (rhs: Value):Value = rhs match {
-      case NumberValue(num2,den2) => numsimplify(NumberValue(num2*num, den2*den))
+      case NumberValue(num2,den2) => simplify(NumberValue(num2*num, den2*den))
       case otherwise => Compound("*", this, rhs)
     }
     def / (rhs: Value):Value = rhs match {
-      case NumberValue(num2,den2) => numsimplify(NumberValue(num*den2, num2*den))
+      case NumberValue(num2,den2) => simplify(NumberValue(num*den2, num2*den))
       case otherwise => Compound("/", this, rhs)
     }
     def ^ (rhs: Value):Value = rhs match {
       case NumberValue(num2,den2) => {
         if (den2==1) 
-          numsimplify(NumberValue(num.pow(num2.toInt), den.pow(den2.toInt)))
+          simplify(NumberValue(num.pow(num2.toInt), den.pow(den2.toInt)))
         else
           Compound("^",NumberValue(num.pow(num2.toInt), den.pow(num2.toInt)), NumberValue(1,den2))
       }
       case otherwise => Compound("^", this, rhs)
     }
     def OVER (rhs: Value):Value = rhs match {
-      case NumberValue(num2,den2) => numsimplify(NumberValue(num*den2, den*num2))
+      case NumberValue(num2,den2) => simplify(NumberValue(num*den2, den*num2))
       case otherwise => Compound("/", this, rhs)
     }
     
@@ -132,13 +132,15 @@ object MathCode {
   // we actually need it.
   implicit def symbolToUnbound(symbol:Symbol):Unbound = Unbound(symbol)
   
+  implicit def symbolToComparator(symbolName:Symbol):Comparator = Comparator(symbolName)
+  implicit def valueToComparator(value:Value):Comparator = Comparator(value)
+  
   //implicit def compoundClusterToCompound(cc:CompoundCluster):Compound = Simplifier.compoundClusterToCompound(cc)
 
   
   //***************************************************************************
-  //* FUNCTIONS:
+  //* FUNCTIONS AND VARIABLES:
   //***************************************************************************  
-  
   case class Variable(variableName:Symbol) {
     def :=(value:Value) : Unit= {
       if((variableMap contains variableName) || (functionMap contains variableName)) {
@@ -149,50 +151,154 @@ object MathCode {
     }
   }
     
+  case class Comparator(value:Value){
+    def >  (rhs:Value) = Comparison(BooleanOperator.>,  value, rhs, Seq())
+    def >= (rhs:Value) = Comparison(BooleanOperator.>=, value, rhs, Seq())
+    def <  (rhs:Value) = Comparison(BooleanOperator.<,  value, rhs, Seq())
+    def <= (rhs:Value) = Comparison(BooleanOperator.<=, value, rhs, Seq())
+    def ===(rhs:Value) = Comparison(BooleanOperator.==, value, rhs, Seq())
+    def !==(rhs:Value) = Comparison(BooleanOperator.!=, value, rhs, Seq())
+  }
+
+  object BooleanOperator {
+    sealed trait EnumVal
+    case object <  extends EnumVal
+    case object <= extends EnumVal
+    case object >  extends EnumVal
+    case object >= extends EnumVal
+    case object == extends EnumVal
+    case object != extends EnumVal
+  }
+
+  case class Comparison(op:BooleanOperator.EnumVal, lhs:Value, rhs:Value, var parameters:Seq[Symbol]) {
+    def isSatisfiedFromArguments(arguments:Value*) : Boolean = {
+      // We need to bind the parameters to the arguments
+      var bindings:Map[Symbol, Value] = getMappingFromParametersToArguments(parameters, arguments)
+      
+      var simplifiedLHS : Value = lhs match {
+        case nv:NumberValue => nv
+        case umbound:Unbound => variableLookupFromBinding(umbound.sym, bindings)
+        case compound:Compound => simplify(Simplifier.getCompoundGivenBinding(compound, bindings), bindings)
+      }
+      
+      var simplifiedRHS : Value = rhs match {
+        case nv:NumberValue => nv
+        case umbound:Unbound => variableLookupFromBinding(umbound.sym, bindings)
+        case compound:Compound => simplify(Simplifier.getCompoundGivenBinding(compound, bindings), bindings)
+      }
+      
+      var lhsAsNumberValue : NumberValue = simplifiedLHS match {
+        case nv:NumberValue => nv
+        case umbound:Unbound => throw new Exception("In order to evaluate piecewise functions, all arguments must be known values!")
+        case compound:Compound => throw new Exception("In order to evaluate piecewise functions, all arguments must be known values!")
+      }
+      
+      var rhsAsNumberValue : NumberValue = simplifiedRHS match {
+        case nv:NumberValue => nv
+        case umbound:Unbound => throw new Exception("In order to evaluate piecewise functions, all arguments must be known values!")
+        case compound:Compound => throw new Exception("In order to evaluate piecewise functions, all arguments must be known values!")
+      }
+        
+      var lhsNum = lhsAsNumberValue.num
+      var lhsDen = lhsAsNumberValue.den
+      var rhsNum = rhsAsNumberValue.num
+      var rhsDen = rhsAsNumberValue.den
+      
+      return op match {
+        case BooleanOperator.>  => return (lhsNum/lhsDen) >  (rhsNum/rhsDen)
+        case BooleanOperator.>= => return (lhsNum/lhsDen) >= (rhsNum/rhsDen)
+        case BooleanOperator.<  => return (lhsNum/lhsDen) <  (rhsNum/rhsDen)
+        case BooleanOperator.<= => return (lhsNum/lhsDen) <= (rhsNum/rhsDen)
+        case BooleanOperator.== => return (lhsNum/lhsDen) == (rhsNum/rhsDen)
+        case BooleanOperator.!= => return (lhsNum/lhsDen) != (rhsNum/rhsDen)
+      }
+    }
+    
+    def ensureComparisonOnlyContains(symbolicNames:Seq[Symbol]) = {
+      ensureValueOnlyContainsUnboundWithSymbolicNames(lhs, symbolicNames)
+      ensureValueOnlyContainsUnboundWithSymbolicNames(rhs, symbolicNames)
+    }
+  }
+
   case class Function(val applier:Symbol) {
     def apply(arguments:Value*): Value  = {
+      // First see if it is a function
       functionMap.get(applier) match {
         case Some(implementation) => implementation.getValueFromArguments(arguments)
         case None => {
-          /* We could try and implement implied multiplication here */
-          throw new Exception("We do not allow implied multiplication!")
+          // Then see if it is a piecewise function
+          piecewiseFunctionMap.get(applier) match {
+            case Some(sequence) => {
+              // Loop through all the comparisons until one is satisfied
+              for((comparisons, implementation) <- sequence) {
+                var satisfied : Boolean = true
+                for (comparison <-comparisons){
+                  if(!comparison.isSatisfiedFromArguments(arguments:_*)){
+                    satisfied = false
+                  }
+                }
+                if (satisfied)
+                  return implementation.getValueFromArguments(arguments)
+              }
+              throw new Exception("The supplied argument did not satisfy any of the piecewise requirements for the function!")
+            }
+            case None =>
+              /* We could try and implement implied multiplication here */
+              throw new Exception("We do not allow implied multiplication!")
+          }
         }
       }
     }
   }
-  
+
   case class FunctionRegistration(functionName:Symbol) {
-    case class Inner(parameters:Symbol*) {
+    case class Registrar(parameters:Symbol*) {
       def :=(expression:Value) {
-        for (parameter <- parameters) {
-          if((variableMap contains functionName) || (functionMap contains functionName))
-            throw new Exception("Redefinition is not allowed!")
-        }
+        if((variableMap contains functionName) || (functionMap contains functionName))
+          throw new Exception("Redefinition is not allowed!")
         ensureValueOnlyContainsUnboundWithSymbolicNames(expression, parameters)
         functionMap += (functionName -> new FunctionImplementation(parameters, expression))
       }
+
+      case class PieceRegistrar(comparisons:Comparison*) {
+        for(comparison <- comparisons) {
+          comparison.ensureComparisonOnlyContains(parameters)
+          comparison.parameters = parameters
+        }
+        
+        def :=(expression:Value) {
+          if((variableMap contains functionName) || (functionMap contains functionName)) // don't check piecewise function map
+            throw new Exception("Redefinition is now allowed!")
+          ensureValueOnlyContainsUnboundWithSymbolicNames(expression, parameters)
+          if(piecewiseFunctionMap contains functionName) {
+            var functionImplementationSequence = piecewiseFunctionMap(functionName)
+            
+            if(functionImplementationSequence(0)._2.parameters != parameters) {
+              throw new Exception("Each Piecewise function defintition must have the exact same parameters!")
+            }
+            
+            piecewiseFunctionMap = piecewiseFunctionMap - functionName // take it out
+            functionImplementationSequence = functionImplementationSequence :+ (comparisons, new FunctionImplementation(parameters, expression))
+            piecewiseFunctionMap += (functionName -> functionImplementationSequence)
+          }
+          else {
+            piecewiseFunctionMap += (functionName -> Seq((comparisons, new FunctionImplementation(parameters, expression))))
+          }
+        }
+      }
+
+      def when (comparisons:Comparison*) = PieceRegistrar(comparisons:_*)
     }
-    def of(parameters:Symbol*) = Inner(parameters : _*)
-  } 
-  
+
+    def of(parameters:Symbol*) = Registrar(parameters : _*)
+  }
+
   case class FunctionImplementation(val parameters:Seq[Symbol], val expression:Value) {
     def getValueFromArguments(values:Seq[Value]) : Value = {
       if (values.length != parameters.length)
         throw new Exception("Incorrect number of arguments")
-      
-      var bindings:Map[Symbol, Value] = Map()
-      // First we need to evaluate the arguments
-      for (i <- 0 to (parameters.length - 1)) {
-        var value = values(i)
-        var parameter = parameters{i}
-        var argument : Value = value match {
-          case nv:NumberValue => nv
-          case Unbound(symbol) => variableLookupFromBinding(symbol, variableMap)
-          case compound:Compound => simplify(Simplifier.getCompoundGivenBinding(compound,  variableMap), variableMap)
-        }
 
-        bindings += (parameter -> argument)
-      }
+      var bindings:Map[Symbol, Value] = getMappingFromParametersToArguments(parameters, values)
       return expression match {
         case nv:NumberValue => nv
         case umbound:Unbound => variableLookupFromBinding(umbound.sym, bindings)
@@ -217,9 +323,56 @@ object MathCode {
       case "*" => Compound("+", Compound("*", DERIVE(lhs, wrt), rhs), Compound("*", lhs, DERIVE(rhs, wrt)))
       case "+"|"-" => Compound(op, DERIVE(lhs, wrt), DERIVE(rhs, wrt))
       case "/" => Compound("/", Compound("-", Compound("*", DERIVE(lhs,wrt), rhs), Compound("*", lhs, DERIVE(rhs,wrt))), Compound("^", rhs, NumberValue(2,1)))
-      case "^" => rhs match {
-        case nv:NumberValue => Compound("*", nv, Compound("^", lhs, nv - 1))
-        case otherwise => throw new Exception("not implemented")
+      case "^" =>  {
+        if (ishere(lhs,wrt) && !ishere(rhs,wrt))
+          Compound("*", DERIVE(lhs,wrt),Compound("*",rhs,Compound("^",lhs,Compound("-",rhs,1))))
+        else if (!ishere(lhs,wrt) && !ishere(rhs,wrt))
+          0
+        else throw new Exception("derivative not implemented")
+      }
+    }
+  }
+  
+  
+    
+  //derives an expression with respect to a variable
+  def integrate(expr:Value, wrt:Symbol): Value = {
+    return simplify(INTEGRATE(expr:Value, wrt:Symbol))
+  }
+  private def INTEGRATE(expr:Value, wrt:Symbol): Value = expr match {
+    case NumberValue(n,d) => Compound("*", NumberValue(n,d),wrt)
+    case Unbound(sym) => { 
+      if (sym == wrt) Compound("/",Compound("^",wrt,2),2)
+      else Compound("*",Unbound(sym),wrt)
+    }
+    case Compound(op, lhs, rhs) => op match {
+      case "*" => {
+        if (ishere(lhs,wrt) && !ishere(rhs,wrt)) //rhs constant
+          Compound("*",rhs,INTEGRATE(lhs,wrt))
+        else if (ishere(rhs,wrt) && !ishere(lhs,wrt)) //lhs constant
+          Compound("*",lhs,INTEGRATE(rhs,wrt))
+        else if (!ishere(rhs,wrt) && !ishere(lhs,wrt)) //all constant
+          Compound("*",Compound("*",lhs,rhs),wrt)
+        else 
+          throw new Exception("product not implemented")
+      }
+      case "+"|"-" => Compound(op, INTEGRATE(lhs, wrt), INTEGRATE(rhs, wrt))
+      case "/" => {
+        if (ishere(lhs,wrt) && !ishere(rhs,wrt)) //rhs constant
+          Compound("/",INTEGRATE(lhs,wrt),rhs)
+        else if (ishere(rhs,wrt) && !ishere(lhs,wrt)) //lhs constant
+          throw new Exception("variable in denumerator not implemented")
+        else if (!ishere(rhs,wrt) && !ishere(lhs,wrt)) //all constant
+          Compound("*",Compound("*",lhs,rhs),wrt)
+        else 
+          throw new Exception("division not implemented")
+      }
+      case "^" =>  {
+        if (ishere(lhs,wrt) && !ishere(rhs,wrt))
+          Compound("/", Compound("/",Compound("^",lhs,Compound("+",rhs,1)),Compound("+",rhs,1)) ,DERIVE(lhs,wrt))
+        else if (!ishere(lhs,wrt) && !ishere(rhs,wrt))
+          Compound("*",Compound(op, lhs, rhs),wrt)
+        else throw new Exception("integral not implemented")
       }
     }
   }
@@ -227,32 +380,62 @@ object MathCode {
   
   //solves lhs=rhs to return wrt = expression (pulls out wrt)
   //assumes wrt appears once total
-//  def solve(lhs:Value,rhs:Value,wrt:Symbol):Value = {
-//    if (isUnbound(lhs) && getSym(lhs).equals(wrt)) return rhs
-//    if (isUnbound(rhs) && getSym(rhs).equals(wrt)) return lhs
-//    if (ishere(lhs,wrt) == ishere(rhs,wrt)) throw new Exception("Variable must appear exactly once")
-//    else { //can solve
-//       if (ishere(lhs,wrt)) return solver(lhs,rhs,wrt)
-//       else return solver(rhs,lhs,wrt)
-//    }
-//  }
-//  private def ishere(where:Value, what:Symbol): Boolean = where match {
-//    case NumberValue(n,d) => false
-//    case Unbound(sym) => what.equals(sym)
-//    case Compound(op,lhs,rhs) => {
-//      var left = ishere(lhs,what)
-//      var right = ishere(rhs,what)
-//      return (left||right) && !(left&&right)  //exclusive or
-//    }
-//  }
-//  private var solveops = "+-*/"
-//  private var oppositeop = "-+/*"
-//  private def solver(lhs:Value,rhs:Value,wrt:Symbol):Value = {
-//    
-//  }
-//  private def find(lhs:Value,what:Symbol) = lhs match {
-//    
-//  }
+  def solve(lhs:Value,rhs:Value,wrt:Symbol):Value = {
+    if (isUnbound(lhs) && getSym(lhs).equals(wrt)) return rhs
+    if (isUnbound(rhs) && getSym(rhs).equals(wrt)) return lhs
+    if (ishere(lhs,wrt) == ishere(rhs,wrt)) throw new Exception("Variable must appear exactly once")
+    else { //can solve
+       if (ishere(lhs,wrt)) return solver(lhs,rhs,wrt)
+       else return simplify(solver(rhs,lhs,wrt))
+    }
+  }
+  private def ishere(where:Value, what:Symbol): Boolean = where match {
+    case NumberValue(n,d) => false
+    case Unbound(sym) => what.equals(sym)
+    case Compound(op,lhs,rhs) => {
+      var left = ishere(lhs,what)
+      var right = ishere(rhs,what)
+      return (left||right) && !(left&&right)  //exclusive or
+    }
+  }
+  private var opposites = Map("+"->"-","-"->"+","*"->"/","/"->"*") 
+  private def solver(lhs:Value,rhs:Value,wrt:Symbol):Value = {
+    //here I know that my variable is in the lhs, for how this helper is called
+    //also, lhs must be a compound at this point
+    var solved = rhs
+    var stop = false
+    var down = lhs match {
+      case Compound(o,l,r) => Compound(o,l,r)
+      case otherwise => throw new Exception("issue 1 in solve")
+    }
+    while (!stop) {
+      var ll = down.lhs
+      var rr = down.rhs
+      var oo = down.op
+      if (ishere(ll,wrt)) {
+        solved = Compound(opposites(oo), solved,rr)
+        ll match {
+          case Compound(o1,l1,r1) => down = Compound(o1,l1,r1)
+          case Unbound(sym) => stop = true
+          case otherwise => throw new Exception("issue 2 in solve")
+        }
+      }
+      else if (ishere(rr,wrt)) {
+        oo match {
+          case "+" | "*" => solved = Compound(opposites(oo),solved, ll) //commutative operators
+          case otherwise => solved = Compound(oo,ll,solved)  //non commutative operators
+        }
+        rr match {
+          case Compound(o1,l1,r1) => down = Compound(o1,l1,r1)
+          case Unbound(sym) => stop = true
+          case otherwise => throw new Exception("issue 3 in solve")
+        }
+      }
+      else 
+        throw new Exception("issue 4 in solve")
+    }
+    return solved   
+  }
   
   
   
@@ -263,7 +446,7 @@ object MathCode {
   //pretty print: parenthesis only when needed
   def pprint(value:Value):Unit = value match {
     case NumberValue(n,d) => {
-      var leastTerms = Simplifier.numsimplifier(NumberValue(n,d))
+      var leastTerms = simplify(NumberValue(n,d))
       var nn = getNum(leastTerms)
       var dd = getDen(leastTerms)
       if (dd==1) println(nn) 
@@ -404,6 +587,7 @@ object MathCode {
   //bindings of variables stored here:
   var variableMap:Map[Symbol,Value] = Map()
   var functionMap:Map[Symbol, FunctionImplementation] = Map()
+  var piecewiseFunctionMap:Map[Symbol, Seq[(Seq[Comparison], FunctionImplementation)]] = Map()
   
   //known values such as pi, e .. can add more
   //if we increase precision, increase precision of these as well.. but not too much or operations with lots of these wil overflow and mess up
@@ -445,27 +629,44 @@ object MathCode {
 
   def simplify(v:Value, binding:Map[Symbol, Value] = variableMap):Value = 
     Simplifier.simplifier(v:Value, binding:Map[Symbol, Value])
-
-  def numsimplify(v:NumberValue):NumberValue = 
-    Simplifier.numsimplifier(v)
   
+    
 
   // Returns the LCM of a and b
   //def lcm(a:Int, b:Int):Int = a*b / gcd(a,b) 
   
-  // For use in function bodies, to make sure there isn't anything we don't expect
+  // For use in function bodies/Comparisons, to make sure there isn't anything we don't expect
   def ensureValueOnlyContainsUnboundWithSymbolicNames(value:Value, symbolicNames:Seq[Symbol]): Unit = {
     value match {
       case NumberValue(_,_) => return
       case Unbound(sym:Symbol) => {
         if(!(symbolicNames contains sym))
-          throw new Exception("You can't have any variables in a function body other than the parameter. Parameters are " + symbolicNames.toString() + ", found " + sym.toString())
+          throw new Exception("Out of scope variable detected. Valid variables are " + symbolicNames.toString() + ", found " + sym.toString())
       }
       case Compound(_, lhs, rhs) => {
         ensureValueOnlyContainsUnboundWithSymbolicNames(lhs, symbolicNames)
         ensureValueOnlyContainsUnboundWithSymbolicNames(rhs, symbolicNames)
       }
     }
+  }
+  
+  def getMappingFromParametersToArguments(parameters:Seq[Symbol], arguments:Seq[Value]) : Map[Symbol, Value] = {
+    assert(arguments.length == parameters.length)
+
+    var bindings:Map[Symbol, Value] = Map()
+    // First we need to evaluate the arguments
+    for (i <- 0 to (parameters.length - 1)) {
+      var unsimplifiedArgument = arguments(i)
+      var parameter = parameters{i}
+      var simplifiedArgument : Value = unsimplifiedArgument match {
+        case nv:NumberValue => nv
+        case Unbound(symbol) => variableLookupFromBinding(symbol, variableMap)
+        case compound:Compound => simplify(Simplifier.getCompoundGivenBinding(compound, variableMap), variableMap)
+      }
+
+      bindings += (parameter -> simplifiedArgument)
+    }
+    return bindings
   }
   
   

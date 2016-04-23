@@ -1,9 +1,10 @@
 object MathDemo {
   
   import MathCode._ 
-
-  def main(args: Array[String]):Unit = {  
+  
+  def demo = {
     
+    println("examples of print")
     //print examples:
      'print := 'a + 4 + 'b
     //1. pretty print
@@ -12,17 +13,32 @@ object MathDemo {
     aprint(1 OVER 3 + 'e) 
     //3. verbose print (old PRINTLN)
     vprint('print*2 -1)
+    println
     
+    println("examples of simplification")
     //simplification of fractions and conversion of doubles
     pprint(100 OVER 5)
     pprint(3.14)
+    println
     
+    println("examples of derivation")
     //derivation
     'f of 'x := -(2*'x + 2)
+    pprint('f('x))
     pprint(derive('f('x),'x))
-    
-    
     println
+    
+    println("examples of integration")
+    pprint(integrate('x^2,'x))
+    pprint(integrate('x*2,'x))
+    println
+ 
+    println("examples of piecewise functions")
+    // Piecewise
+    'p of ('x, 'y) when ('x + 1 === 0 + 'y, 'x > 0) := 0
+    'p of ('x, 'y) when ('x !== 0) := 1 / 'x
+    pprint('p(45, 46))
+    pprint('p(4, 8))
     println
     
     'g of 'x := -(2*'x + 2)
@@ -46,8 +62,20 @@ object MathDemo {
     pprint(2*'a-2*'a)
     pprint('a+'a-'a)
     pprint('a+1+1)
+
+    println("examples of solving simple equation")
+    pprint(solve(5-2*'x,'a/'b,'x))
+    println
+  }
+
+  def main(args: Array[String]):Unit = {  
     
-    return //move examples before the return, see google doc :D
+    //demo
+ 
+    
+      
+    
+    return //move examples in demo, see google doc :D
     
     'b := 3 + 6 * 5 / 3
     
@@ -102,6 +130,12 @@ object MathDemo {
     'd := 'x + 5*'x^3
     vprint('d)
     
-
+    'abc of ('x, 'y) when ('x + 1 === 0 + 'y, 'x > 0) := 0
+    'abc of ('x, 'y) when ('x !== 0) := 1 / 'x
+    
+    'test := 45
+    
+    pprint('abc('test + 5, 46))
+    pprint('abc(4, 8))
   }
 }
