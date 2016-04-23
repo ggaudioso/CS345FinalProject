@@ -1,5 +1,5 @@
 import scala.language.implicitConversions
-import scala.math.{ pow, min }
+import scala.math.{ pow, min, log }
 
 object MathCode {
 
@@ -552,9 +552,13 @@ object MathCode {
         return
       }
       if (op.equals("^") && isUnbound(lhs) && getSym(lhs)=='ln) {
+        if (approximate && isNumberValue(rhs)) 
+          print(log(getNum(rhs).toDouble/getDen(rhs).toDouble))
+        else {
           print("ln(")
           pprinthelp(rhs,approximate)
           print(")")
+        }
           return
       }
       if (op.equals("*") && ( (isNumberValue(rhs) && getNum(rhs)==0) || (isNumberValue(lhs) && getNum(lhs)==0) ) ) {

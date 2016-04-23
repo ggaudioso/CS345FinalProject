@@ -77,6 +77,7 @@ object MathDemo {
     //pretty examples go in the demo
     //your own testing goes here BUT is moved after the return before commit because I might not want to see it :)
     
+    
     return //move examples in demo, see google doc :D
     
         'g of 'x := -(2*'x + 2)
