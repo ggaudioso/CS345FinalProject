@@ -1,5 +1,5 @@
 import scala.language.implicitConversions
-import scala.math.{ pow, min, log }
+import scala.math.{ pow, min, log, abs }
 
 object MathCode {
 
@@ -335,6 +335,15 @@ object MathCode {
       }
     }
   }
+  private def ishere(where:Value, what:Symbol): Boolean = where match {
+    case NumberValue(n,d) => false
+    case Unbound(sym) => what.equals(sym)
+    case Compound(op,lhs,rhs) => {
+      var left = ishere(lhs,what)
+      var right = ishere(rhs,what)
+      return (left||right)
+    }
+  }
   
   
     
@@ -396,7 +405,7 @@ object MathCode {
   //approximation using trapezoids
   private def intapprox(expr:Value,wrt:Symbol,a:Double,b:Double):Value = {
     var fun = Compound("+",expr,0) //need compound later
-    var num = 1000  //could be increased for higher precision, but kind of takes for ever to run
+    var num = 10000  
     var heigths = 0.0
     var delta = (b-a)/num.toDouble
     for (i <- 0 to num) {
@@ -428,18 +437,18 @@ object MathCode {
   def solve(lhs:Value,rhs:Value,wrt:Symbol):Value = {
     if (isUnbound(lhs) && getSym(lhs).equals(wrt)) return rhs
     if (isUnbound(rhs) && getSym(rhs).equals(wrt)) return lhs
-    if (ishere(lhs,wrt) == ishere(rhs,wrt)) throw new Exception("Variable must appear exactly once")
+    if (ishereOnce(lhs,wrt) == ishereOnce(rhs,wrt)) throw new Exception("Variable must appear exactly once")
     else { //can solve
-       if (ishere(lhs,wrt)) return solver(lhs,rhs,wrt)
+       if (ishereOnce(lhs,wrt)) return solver(lhs,rhs,wrt)
        else return simplify(solver(rhs,lhs,wrt))
     }
   }
-  private def ishere(where:Value, what:Symbol): Boolean = where match {
+  private def ishereOnce(where:Value, what:Symbol): Boolean = where match {
     case NumberValue(n,d) => false
     case Unbound(sym) => what.equals(sym)
     case Compound(op,lhs,rhs) => {
-      var left = ishere(lhs,what)
-      var right = ishere(rhs,what)
+      var left = ishereOnce(lhs,what)
+      var right = ishereOnce(rhs,what)
       return (left||right) && !(left&&right)  //exclusive or
     }
   }
@@ -457,7 +466,7 @@ object MathCode {
       var ll = down.lhs
       var rr = down.rhs
       var oo = down.op
-      if (ishere(ll,wrt)) {
+      if (ishereOnce(ll,wrt)) {
         solved = Compound(opposites(oo), solved,rr)
         ll match {
           case Compound(o1,l1,r1) => down = Compound(o1,l1,r1)
@@ -465,7 +474,7 @@ object MathCode {
           case otherwise => throw new Exception("issue 2 in solve")
         }
       }
-      else if (ishere(rr,wrt)) {
+      else if (ishereOnce(rr,wrt)) {
         oo match {
           case "+" | "*" => solved = Compound(opposites(oo),solved, ll) //commutative operators
           case otherwise => solved = Compound(oo,ll,solved)  //non commutative operators
@@ -482,6 +491,52 @@ object MathCode {
     return solved   
   }
   
+  //takes the limit of "expr" as "wrt" goes to "where"
+  def limit(expr:Value,wrt:Symbol,where:Value): Value = simplify(expr) match {    
+    case NumberValue(n,d) => NumberValue(n,d)
+    case Unbound(sym) => if (wrt==sym) where else sym
+    case Compound(o,l,r) => where match {
+      case Compound(_,_,_) => throw new Exception("limit cannot go to expression")
+      case NumberValue(n,d) => Simplifier.getCompoundGivenBinding(Compound(o,l,r), Map(wrt->NumberValue(n,d)))
+      case Unbound(sym) => { 
+        if (sym=='Infinity) { 
+          if (!ishere(expr,wrt)) expr
+          else gotoinf(Compound(o,l,r),wrt)
+        }
+        else Simplifier.getCompoundGivenBinding(Compound(o,l,r), Map(wrt->sym))
+      }
+    }
+  }
+  private def gotoinf(expr:Compound,wrt:Symbol):Value = { 
+    //Uses the definition of limit. 
+    //If the expression stabilizes around a value as wrt increases, then the limit is that value
+    //If the expression keeps growing as wrt increases, then the limit is infinity
+    var epsilon = 0.0001
+    var startx = 100
+    var starty = simplify(Simplifier.getCompoundGivenBinding(expr,Map(wrt->startx)))
+    var difference:Value = 0
+    for (i <- 1 to 10) {
+      var x = startx + 1000*i
+      var y = simplify(Simplifier.getCompoundGivenBinding(expr,Map(wrt->x)))
+      difference = simplify(Compound("-",y,starty))
+      difference match {
+        case NumberValue(n,d) => {
+          var diff = n.toDouble/d.toDouble
+          if (abs(diff)<=epsilon) return y
+        }
+        case otherwise => pprint(difference); throw new Exception("difference is not a simple number")
+      }
+      starty = y
+    }
+    difference match {
+      case NumberValue(n,d) => {
+        var diff = n.toDouble/d.toDouble
+        if (diff>0) return 'Infinity
+        else return Compound("-",0,'Infinity)
+      }
+      case otherwise => throw new Exception("difference is not a simple number")
+    }
+  }
   
   
   //***************************************************************************
@@ -513,8 +568,8 @@ object MathCode {
   def aprint(value:Value):Unit = value match {
     case NumberValue(n,d) => { 
       if (d!= 0) println(n.toDouble/d.toDouble) 
-      else if (n==0) println("undefined")
-      else println("inf")
+      else if (n==0) println("Undefined")
+      else println("Infinity")
     }
     case Unbound(sym) => { 
       if (variableMap contains sym) aprint(variableMap(sym))
@@ -537,20 +592,12 @@ object MathCode {
   private def pprinthelp(value:Value, approximate:Boolean):Unit = value match {
     case NumberValue(n,d) => { 
       if (!approximate) { if (d==1) print(n) else print(n+"/"+d) }
-      else print(n.toDouble/d.toDouble) 
+      else {
+        if (n==0 && d==0) print("Undefined")
+        else print(n.toDouble/d.toDouble) 
+      }
     }
     case Unbound(sym) => print(sym.toString().substring(1))
-    /*case Compound("-",NumberValue(IntBig(0),_),rhs) => {
-      print("-")
-      rhs match {
-        case c:Compound => {
-          print("(")
-          pprinthelp(rhs,approximate)
-          print(")")
-        }
-        case otherwise => pprinthelp(rhs,approximate)
-      }
-    }*/
     case Compound(op,lhs,rhs) => {
       if (op.equals("-") && isNumberValue(lhs) && getNum(lhs) == 0) {
         print(op)
@@ -590,11 +637,11 @@ object MathCode {
         case _ => parrhs = false
       }
       if (parlhs) print("(")
-      pprinthelp(lhs,approximate)
+      pprinthelp(simplify(lhs),approximate)
       if (parlhs) print(")")
       print(" " + op + " ")
       if (parrhs) print("(")
-      pprinthelp(rhs,approximate)
+      pprinthelp(simplify(rhs),approximate)
       if (parrhs) print(")")     
     } 
   }
