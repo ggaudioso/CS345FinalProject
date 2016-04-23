@@ -166,7 +166,7 @@ object MathCode {
       def :=(expression:Value) {
         for (parameter <- parameters) {
           if((variableMap contains functionName) || (functionMap contains functionName))
-            throw new Exception("Redefinition is now allowed!")
+            throw new Exception("Redefinition is not allowed!")
         }
         ensureValueOnlyContainsUnboundWithSymbolicNames(expression, parameters)
         functionMap += (functionName -> new FunctionImplementation(parameters, expression))

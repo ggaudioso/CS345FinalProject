@@ -25,8 +25,25 @@ object MathDemo {
     println
     println
     
-    'f of 'x := -(2*'x + 2)
-    pprint(derive('f('x),'x))
+    'g of 'x := -(2*'x + 2)
+    pprint(derive('g('x),'x))
+
+    println
+    println
+
+    pprint('a+1+2)
+    pprint('a+1+'a)
+    pprint(('a - 3)-(4 - 'a))
+
+    println
+    println
+
+    pprint('a-'a)
+    pprint('a+'a)
+    pprint('a*0)
+    pprint('a*1)
+    pprint('a+0)
+    pprint(2*'a-2*'a)
     
     return //move examples before the return, see google doc :D
     

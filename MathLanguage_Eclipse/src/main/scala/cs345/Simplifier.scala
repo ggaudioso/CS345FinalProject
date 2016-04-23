@@ -55,7 +55,13 @@ object Simplifier {
 //COMPOUNDS: --------- --------- --------- --------- --------- --------- --------- --------- ---------  
   
   def simplifier(v:Value, binding:Map[Symbol, Value]):Value = {
-        simplifyCompound_wrapper(v, binding) match {
+        println
+	debug_print(v)
+        println
+        val v2 = simplifyCompound_wrapper(v, binding)
+        debug_print(v2)
+        println
+        v2 match {
     //v match {
       case NumberValue(n,d) => {
         if (n == 0) {
@@ -94,7 +100,7 @@ object Simplifier {
 
           case otherwise => rhs match {
             case rhs_c:Compound => simplify_any_compound(outer_op, Compound(inner_op, lhs1, rhs1), rhs_c, false, binding)
-            case otherwise => v
+            case otherwise => v2
           }
         }
       }
@@ -106,7 +112,7 @@ object Simplifier {
       }
       case otherwise => {
         //println("Hit otherwise case")
-        v
+        v2
       }
     }
   }
