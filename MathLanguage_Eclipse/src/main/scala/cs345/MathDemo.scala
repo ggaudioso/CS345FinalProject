@@ -51,7 +51,7 @@ object MathDemo {
     println("****************************************");
     pprint(integral('x, 'x, 'a, 'b))
     print("Integral on [0, 5]: ");
-    aprint(integral('x, 'x, 0, 5))
+    aprint(integral('x + ('x^2) + (2^'x), 'x, 0, 5)) //you need to put parenthesis or Scala is weird
     println
  
     println("****************************************");
@@ -63,8 +63,23 @@ object MathDemo {
     pprint('p(45, 46))
     pprint('p(4, 8))
     println
+
+    println("****************************************");
+    println("* Examples of solving a simple equation")
+    println("****************************************");
+    pprint(solve(5-2*'x,'a/'b,'x))
+    println
+  }
+
+  def main(args: Array[String]):Unit = {  
     
-    'g of 'x := -(2*'x + 2)
+    demo    //comment if you don't want to see, but leave it uncommented in committed code
+    //pretty examples go in the demo
+    //your own testing goes here BUT is moved after the return before commit because I might not want to see it :)
+    
+    return //move examples in demo, see google doc :D
+    
+        'g of 'x := -(2*'x + 2)
     pprint(derive('g('x),'x))
 
     println
@@ -87,20 +102,8 @@ object MathDemo {
     pprint('a+1+1)
     println
     
-
-    println("****************************************");
-    println("* Examples of solving a simple equation")
-    println("****************************************");
-    pprint(solve(5-2*'x,'a/'b,'x))
-    println
-  }
-
-  def main(args: Array[String]):Unit = {  
-    
-    demo
     
     
-    return //move examples in demo, see google doc :D
     
     'b := 3 + 6 * 5 / 3
     

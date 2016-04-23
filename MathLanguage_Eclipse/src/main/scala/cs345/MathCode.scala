@@ -393,7 +393,7 @@ object MathCode {
   //approximation using trapezoids
   private def intapprox(expr:Value,wrt:Symbol,a:Double,b:Double):Value = {
     var fun = Compound("+",expr,0) //need compound later
-    var num = 100
+    var num = 1000  //could be increased for higher precision, but kind of takes for ever to run
     var heigths = 0.0
     var delta = (b-a)/num.toDouble
     for (i <- 0 to num) {
