@@ -333,32 +333,62 @@ object MathCode {
   
   //solves lhs=rhs to return wrt = expression (pulls out wrt)
   //assumes wrt appears once total
-//  def solve(lhs:Value,rhs:Value,wrt:Symbol):Value = {
-//    if (isUnbound(lhs) && getSym(lhs).equals(wrt)) return rhs
-//    if (isUnbound(rhs) && getSym(rhs).equals(wrt)) return lhs
-//    if (ishere(lhs,wrt) == ishere(rhs,wrt)) throw new Exception("Variable must appear exactly once")
-//    else { //can solve
-//       if (ishere(lhs,wrt)) return solver(lhs,rhs,wrt)
-//       else return solver(rhs,lhs,wrt)
-//    }
-//  }
-//  private def ishere(where:Value, what:Symbol): Boolean = where match {
-//    case NumberValue(n,d) => false
-//    case Unbound(sym) => what.equals(sym)
-//    case Compound(op,lhs,rhs) => {
-//      var left = ishere(lhs,what)
-//      var right = ishere(rhs,what)
-//      return (left||right) && !(left&&right)  //exclusive or
-//    }
-//  }
-//  private var solveops = "+-*/"
-//  private var oppositeop = "-+/*"
-//  private def solver(lhs:Value,rhs:Value,wrt:Symbol):Value = {
-//    
-//  }
-//  private def find(lhs:Value,what:Symbol) = lhs match {
-//    
-//  }
+  def solve(lhs:Value,rhs:Value,wrt:Symbol):Value = {
+    if (isUnbound(lhs) && getSym(lhs).equals(wrt)) return rhs
+    if (isUnbound(rhs) && getSym(rhs).equals(wrt)) return lhs
+    if (ishere(lhs,wrt) == ishere(rhs,wrt)) throw new Exception("Variable must appear exactly once")
+    else { //can solve
+       if (ishere(lhs,wrt)) return solver(lhs,rhs,wrt)
+       else return simplify(solver(rhs,lhs,wrt))
+    }
+  }
+  private def ishere(where:Value, what:Symbol): Boolean = where match {
+    case NumberValue(n,d) => false
+    case Unbound(sym) => what.equals(sym)
+    case Compound(op,lhs,rhs) => {
+      var left = ishere(lhs,what)
+      var right = ishere(rhs,what)
+      return (left||right) && !(left&&right)  //exclusive or
+    }
+  }
+  private var opposites = Map("+"->"-","-"->"+","*"->"/","/"->"*") 
+  private def solver(lhs:Value,rhs:Value,wrt:Symbol):Value = {
+    //here I know that my variable is in the lhs, for how this helper is called
+    //also, lhs must be a compound at this point
+    var solved = rhs
+    var stop = false
+    var down = lhs match {
+      case Compound(o,l,r) => Compound(o,l,r)
+      case otherwise => throw new Exception("issue 1 in solve")
+    }
+    while (!stop) {
+      var ll = down.lhs
+      var rr = down.rhs
+      var oo = down.op
+      if (ishere(ll,wrt)) {
+        solved = Compound(opposites(oo), solved,rr)
+        ll match {
+          case Compound(o1,l1,r1) => down = Compound(o1,l1,r1)
+          case Unbound(sym) => stop = true
+          case otherwise => throw new Exception("issue 2 in solve")
+        }
+      }
+      else if (ishere(rr,wrt)) {
+        oo match {
+          case "+" | "*" => solved = Compound(opposites(oo),solved, ll) //commutative operators
+          case otherwise => solved = Compound(oo,ll,solved)  //non commutative operators
+        }
+        rr match {
+          case Compound(o1,l1,r1) => down = Compound(o1,l1,r1)
+          case Unbound(sym) => stop = true
+          case otherwise => throw new Exception("issue 3 in solve")
+        }
+      }
+      else 
+        throw new Exception("issue 4 in solve")
+    }
+    return solved   
+  }
   
   
   
