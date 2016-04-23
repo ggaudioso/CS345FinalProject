@@ -46,7 +46,6 @@ object MathCode {
     def ^ (rhs: Value):Value = rhs match {
       case NumberValue(num2,den2) => {
         if (den2==1) {
-          println("Taking power to $num2 over $den2")
           simplify(NumberValue(num.pow(num2.toInt), den.pow(den2.toInt)))
         } else
           Compound("^",NumberValue(num.pow(num2.toInt), den.pow(num2.toInt)), NumberValue(1,den2))
