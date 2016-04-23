@@ -335,11 +335,11 @@ object MathCode {
   
   
     
-  //derives an expression with respect to a variable
+  //integrates an expression with respect to a variable
   def integrate(expr:Value, wrt:Symbol): Value = {
     return simplify(INTEGRATE(expr:Value, wrt:Symbol))
   }
-  private def INTEGRATE(expr:Value, wrt:Symbol): Value = expr match {
+  private def INTEGRATE(expr:Value, wrt:Symbol): Compound = expr match {
     case NumberValue(n,d) => Compound("*", NumberValue(n,d),wrt)
     case Unbound(sym) => { 
       if (sym == wrt) Compound("/",Compound("^",wrt,2),2)
@@ -373,6 +373,48 @@ object MathCode {
         else if (!ishere(lhs,wrt) && !ishere(rhs,wrt))
           Compound("*",Compound(op, lhs, rhs),wrt)
         else throw new Exception("integral not implemented")
+      }
+    }
+  }
+  
+  //solves definite integral
+  def integral(expr:Value,wrt:Symbol,a:Value,b:Value):Value = {
+    if (isNumberValue(a) && isNumberValue(b))
+      intapprox(expr,wrt,getNum(a).toDouble/getDen(a).toDouble,getNum(b).toDouble/getDen(b).toDouble)
+    else {
+      var indefinite = INTEGRATE(expr,wrt) //might throw exception, oh well
+      var bindb = Map(wrt->b)
+      var defb = Simplifier.getCompoundGivenBinding(indefinite,bindb)
+      var binda = Map(wrt->a)
+      var defa = Simplifier.getCompoundGivenBinding(indefinite,binda)
+      return Compound("-",defb,defa)
+    }
+  }
+  //approximation using trapezoids
+  private def intapprox(expr:Value,wrt:Symbol,a:Double,b:Double):Value = {
+    var fun = Compound("+",expr,0) //need compound later
+    var num = 100
+    var heigths = 0.0
+    var delta = (b-a)/num.toDouble
+    for (i <- 0 to num) {
+      var x = a + delta*i
+      var y = approx(fun,wrt,x)
+      if (i!=0 && i!=num) y=y*2
+      heigths += y
+    }
+    return heigths*delta/2
+  }
+  private def approx(what:Value,wrt:Symbol,x:Double):Double = what match {
+    case NumberValue(n,d) => return n.toDouble/d.toDouble
+    case Unbound(sym) => if (sym==wrt) return x else throw new Exception("cannot approximate variables")
+    case Compound(o,l,r) => {
+      o match {
+        case "+" => return approx(l,wrt,x) + approx(r,wrt,x)
+        case "-" => return approx(l,wrt,x) - approx(r,wrt,x)
+        case "*" => return approx(l,wrt,x) * approx(r,wrt,x)
+        case "/" => return approx(l,wrt,x) / approx(r,wrt,x)
+        case "^" => return pow(approx(l,wrt,x),approx(r,wrt,x))
+        case otherwise => throw new Exception("unknown operator")
       }
     }
   }

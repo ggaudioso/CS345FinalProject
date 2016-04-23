@@ -28,9 +28,14 @@ object MathDemo {
     pprint(derive('f('x),'x))
     println
     
-    println("examples of integration")
+    println("examples of indefinite integrals")
     pprint(integrate('x^2,'x))
     pprint(integrate('x*2,'x))
+    println
+    
+    println("examples of definite integrals")
+    pprint(integral('x,'x,'a,'b))
+    aprint(integral('x,'x,0,5))
     println
  
     println("examples of piecewise functions")
@@ -49,9 +54,7 @@ object MathDemo {
   def main(args: Array[String]):Unit = {  
     
     //demo
- 
     
-      
     
     return //move examples in demo, see google doc :D
     
