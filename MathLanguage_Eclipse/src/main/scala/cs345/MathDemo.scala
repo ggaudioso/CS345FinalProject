@@ -4,6 +4,35 @@ object MathDemo {
 
   def main(args: Array[String]):Unit = {  
     
+    //print examples:
+     'print := 'a + 4 + 'b
+    //1. pretty print
+    pprint('print*2 -1)
+    //2. approximator print
+    aprint(1 OVER 3 + 'e) 
+    //3. verbose print (old PRINTLN)
+    vprint('print*2 -1)
+    
+    //simplification of fractions and conversion of doubles
+    pprint(100 OVER 5)
+    pprint(3.14)
+    
+    //derivation
+    'f of 'x := -(2*'x + 2)
+    pprint(derive('f('x),'x))
+ 
+    
+    println
+    println
+
+    // Piecewise
+    'p of ('x, 'y) when ('x + 1 === 0 + 'y, 'x > 0) := 0
+    'p of ('x, 'y) when ('x !== 0) := 1 / 'x
+    pprint('p(45, 46))
+    pprint('p(4, 8))
+    
+    return //move examples before the return, see google doc :D
+    
     'b := 3 + 6 * 5 / 3
     
     'x := -'b + 6 * 7 / 6 * 3
@@ -13,88 +42,27 @@ object MathDemo {
     'g of ('x, 'y) := 'x + 'y
     
     
+   
     println
-    PRINTLN_EVALUATE(1 / 3)
-    PRINTLN_EVALUATE(1 OVER 3)
+    pprint(1 / 3)
+    pprint(1 OVER 3)
 
     println
-    PRINTLN_EVALUATE((1 OVER 3) - (3 OVER 1))
+    pprint((1 OVER 3) - (3 OVER 1))
 
     println
     'c := 4
     'a := 'c + 3
-    PRINTLN_EVALUATE('a)
+    pprint('a)
 
     println
-    PRINTLN_EVALUATE(('d+'y)*('z+'w))
-    PRINTLN_EVALUATE(('d-'y)*('z+'w))
-    PRINTLN_EVALUATE(('d-'y)*('z-'w))
-    PRINTLN_EVALUATE('z*('d-'y))
+    pprint(('d+'y)*('z+'w))
+    pprint(('d-'y)*('z+'w))
+    pprint(('d-'y)*('z-'w))
+    pprint('z*('d-'y))
 
     println
-    PRINTLN(1^'a)
-    
-//
-//    LET('three) BE 3
-//    LET('four) BE 4
-//    
-//    PRINTLN_EVALUATE('three/'four)
-//    PRINTLN_APPROXIMATE('three/'four)
-//    
-//    PRINTLN('three)
-//    
-//    PRINTLN(neg('x + 4))
-//    
-//    PRINTLN('e ^ neg('x))
-//    
-//    //PRINT('four)
-//    //PRINT('newvar)
-//    LET('x) BE 'newvar + 'four
-//    PRINTLN('x)
-//    LET('x) BE 'x + 2
-//    PRINTLN('x) //eg of what needs to be simplified
-//    PRINTLN('x * 2)
-//    
-//
-//    
-//    
-//    PRINTSTRING("\nNew update, see below:\n")
-//    
-//    
-//    // Mike:
-//    // This will print: 'b + 3
-//    LET ('a) BE 'b + 3
-//    PRINTSTRING("Expression with 'b unbound:")
-//    PRINTLN('a)
-//    
-//    // This will still print: 'b + 3
-//    // It should print: 7
-//    //   since 'b was assigned to 4.
-//    PRINTSTRING("\nBinding 'b to 7.\n")
-//    LET ('b) BE 4
-//    PRINTSTRING("Old way:")
-//    PRINTLN('a)
-//    
-//    // This method performs correctly. I made it separately
-//    // in case we still want the old behavior for some reason.
-//    PRINTSTRING("New way (success):")
-//    PRINTLN_USE_BINDINGS('a)
-//    
-//    PRINTSTRING("\n")
-//    
-//    // Testing further.
-//    PRINTSTRING("More advanced test below:")
-//    LET ('c) BE 'a + 'd
-//    LET ('e) BE 'c * 'f
-//    LET ('g) BE 'e / 36
-//    PRINTLN_USE_BINDINGS('g)
-//    LET ('d) BE 45
-//    PRINTLN_USE_BINDINGS('g)
-//    LET ('f) BE 56
-//    PRINTLN_USE_BINDINGS('g)
-    
-    //'x := 'a + 'b + 'c + 'd
-    //PRINTLN('x)
+    vprint(1^'a)
     
     'y := 'f('x)
     'h := 'f(2 + 80)
@@ -102,31 +70,28 @@ object MathDemo {
     'p := 'g('f('x), 2)
     
     
-    PRINTLN('b)
-    PRINTLN('y)
-    PRINTLN('h)
-    PRINTLN('z)
-    PRINTLN('p)
+    vprint('b)
+    vprint('y)
+    vprint('h)
+    vprint('z)
+    vprint('p)
 
     println
-    PRINTLN(DERIVE('w + (5*'w^3), 'w))
-    PRINTLN(DERIVE('w + 5*'w^3, 'w))
-    PRINTLN('w + 5*'w^3)
-    PRINTLN('x)
+    vprint(derive('w + (5*'w^3), 'w))
+    vprint(derive('w + 5*'w^3, 'w))
+    vprint('w + 5*'w^3)
+    vprint('x)
     println
-    PRINTLN('x + 5*'x^3)
+    vprint('x + 5*'x^3)
     'd := 'x + 5*'x^3
-    PRINTLN('d)
+    vprint('d)
     
-    'piece of ('x, 'y) when ('x + 1 === 0 + 'y, 'x > 0) := 0
-    'piece of ('x, 'y) when ('x !== 0) := 1 / 'x
+    'abc of ('x, 'y) when ('x + 1 === 0 + 'y, 'x > 0) := 0
+    'abc of ('x, 'y) when ('x !== 0) := 1 / 'x
     
-    'fortyFive := 45
+    'test := 45
     
-    PRINTLN('piece('fortyFive + 5, 1))
-    PRINTLN('piece(4, 8))
-    
-    // Regression tests for compound simplification.
-    //TEST_COMPOUND_SIMPLIFICATION
+    pprint('abc('test + 5, 46))
+    pprint('abc(4, 8))
   }
 }
