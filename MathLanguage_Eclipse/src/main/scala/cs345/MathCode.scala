@@ -491,7 +491,7 @@ object MathCode {
   }
   
   //takes the limit of "expr" as "wrt" goes to "where"
-  def limit(expr:Value,wrt:Symbol,where:Value): Value = simplify(expr) match {      
+  def limit(expr:Value,wrt:Symbol,where:Value): Value = simplify(expr) match {    
     case NumberValue(n,d) => NumberValue(n,d)
     case Unbound(sym) => if (wrt==sym) where else sym
     case Compound(o,l,r) => where match {
@@ -523,7 +523,7 @@ object MathCode {
           var diff = n.toDouble/d.toDouble
           if (abs(diff)<=epsilon) return y
         }
-        case otherwise => throw new Exception("difference is not a simple number")
+        case otherwise => pprint(difference); throw new Exception("difference is not a simple number")
       }
       starty = y
     }
@@ -597,17 +597,6 @@ object MathCode {
       }
     }
     case Unbound(sym) => print(sym.toString().substring(1))
-    /*case Compound("-",NumberValue(IntBig(0),_),rhs) => {
-      print("-")
-      rhs match {
-        case c:Compound => {
-          print("(")
-          pprinthelp(rhs,approximate)
-          print(")")
-        }
-        case otherwise => pprinthelp(rhs,approximate)
-      }
-    }*/
     case Compound(op,lhs,rhs) => {
       if (op.equals("-") && isNumberValue(lhs) && getNum(lhs) == 0) {
         print(op)

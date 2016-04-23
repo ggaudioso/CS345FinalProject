@@ -27,9 +27,14 @@ object Simplifier {
 //COMPOUNDS: --------- --------- --------- --------- --------- --------- --------- --------- ---------  
   
   def simplifier(v:Value, binding:Map[Symbol, Value]):Value = {
-    val v2 = simplifyCompound_wrapper(v, binding)
-    val v3 = v2 match {
-      //v match {
+        //println
+	//debug_print(v)
+        //println
+        val v2 = simplifyCompound_wrapper(v, binding)
+        //debug_print(v2)
+        //println
+        v2 match {
+    //v match {
       case NumberValue(n,d) => {
         if (n == 0 && d!=0) {
           NumberValue(0,1)
@@ -50,12 +55,7 @@ object Simplifier {
       }
       case Compound("*", NumberValue(IntBig(0),_), rhs) => NumberValue(0,1)
       case Compound("*", lhs, NumberValue(IntBig(0),_)) => NumberValue(0,1)
-      case Compound("*", NumberValue(IntBig(1),IntBig(1)), rhs) => {
-        /*println("One times:")
-        debug_print(rhs)
-        println*/
-        rhs
-      }
+      case Compound("*", NumberValue(IntBig(1),IntBig(1)), rhs) => rhs
       case Compound("*", lhs, NumberValue(IntBig(1),IntBig(1))) => lhs
       case Compound("+", lhs, NumberValue(IntBig(0),_)) => lhs
       case Compound("+", NumberValue(IntBig(0),_), rhs) => rhs
@@ -72,13 +72,13 @@ object Simplifier {
             val new_lhs = simplify(Compound("*", simp_lhs1, simp_rhs), binding)
             val new_rhs = simplify(Compound("*", simp_rhs1, simp_rhs), binding)
             /*println("new lhs, rhs:")
-             debug_print(new_lhs)
-             debug_print(new_rhs)*/
+            debug_print(new_lhs)
+            debug_print(new_rhs)*/
             simplify(Compound(inner_op, new_lhs, new_rhs), binding)
           }
 
           case otherwise => rhs match {
-            case rhs_c:Compound => simplify_any_compound(outer_op, simplify(Compound(inner_op, simp_lhs1, simp_rhs1)), rhs_c, false, binding)
+            case rhs_c:Compound => simplify_any_compound(outer_op, Compound(inner_op, lhs1, rhs1), rhs_c, false, binding)
             case otherwise => v2
           }
         }
@@ -94,14 +94,6 @@ object Simplifier {
         v2
       }
     }
-    /*println("Simplified:")
-    debug_print(v)
-    println
-    debug_print(v2)
-    println
-    debug_print(v3)
-    println*/
-    v3
   }
   
   
