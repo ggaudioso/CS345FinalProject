@@ -41,6 +41,28 @@ object MathDemo {
     pprint('p(4, 8))
     println
     
+    'g of 'x := -(2*'x + 2)
+    pprint(derive('g('x),'x))
+
+    println
+    println
+
+    pprint('a+1+2)
+    pprint('a+1+'a)
+    pprint(('a - 3)-(4 - 'a))
+
+    println
+    println
+
+    pprint('a-'a)
+    pprint('a+'a)
+    pprint('a*0)
+    pprint('a*1)
+    pprint('a+0)
+    pprint(2*'a-2*'a)
+    pprint('a+'a-'a)
+    pprint('a+1+1)
+
     println("examples of solving simple equation")
     pprint(solve(5-2*'x,'a/'b,'x))
     println
