@@ -539,6 +539,17 @@ object MathCode {
       else print(n.toDouble/d.toDouble) 
     }
     case Unbound(sym) => print(sym.toString().substring(1))
+    /*case Compound("-",NumberValue(IntBig(0),_),rhs) => {
+      print("-")
+      rhs match {
+        case c:Compound => {
+          print("(")
+          pprinthelp(rhs,approximate)
+          print(")")
+        }
+        case otherwise => pprinthelp(rhs,approximate)
+      }
+    }*/
     case Compound(op,lhs,rhs) => {
       if (op.equals("-") && isNumberValue(lhs) && getNum(lhs) == 0) {
         print(op)
@@ -560,28 +571,6 @@ object MathCode {
           print(")")
         }
           return
-      }
-      if (op.equals("*") && ( (isNumberValue(rhs) && getNum(rhs)==0) || (isNumberValue(lhs) && getNum(lhs)==0) ) ) {
-        return
-      }  
-      if (op.equals("*") && ( (isNumberValue(rhs) && getNum(rhs)==0) || (isNumberValue(lhs) && getNum(lhs)==0) ) ) {
-        return
-      } 
-      if (op.equals("*") && isNumberValue(rhs) && getNum(rhs)==getDen(rhs) ) {
-        pprinthelp(lhs,approximate)
-        return
-      }
-      if (op.equals("*") && isNumberValue(lhs) && getNum(lhs)==getDen(lhs) ) {
-        pprinthelp(rhs,approximate)
-        return
-      }
-      if (op.equals("+") && isNumberValue(lhs) && getNum(lhs)==0 ) {
-        pprinthelp(rhs,approximate)
-        return
-      }
-      if (op.equals("+") && isNumberValue(rhs) && getNum(rhs)==0 ) {
-        pprinthelp(lhs,approximate)
-        return
       }
       var parlhs = false 
       var parrhs = false
