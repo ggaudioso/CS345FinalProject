@@ -13,6 +13,10 @@ object MathDemo {
     //3. verbose print (old PRINTLN)
     vprint('print*2 -1)
     
+    //simplification of fractions, and conversion of doubles
+    pprint(100 OVER 5)
+    pprint(3.14)
+    
     return //move examples before the return, see google doc :D
     
     'b := 3 + 6 * 5 / 3

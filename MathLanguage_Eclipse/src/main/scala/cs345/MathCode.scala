@@ -27,34 +27,34 @@ object MathCode {
   // Namely, a known number that isn't irrational
   case class NumberValue(val num:BigInt, val den:BigInt) extends Value {
     def + (rhs: Value):Value = rhs match {
-      case NumberValue(num2,den2) => NumberValue(num*den2 + num2*den,den*den2)
-      case Unbound(sym) => Compound("+", this, sym)
-      case c:Compound => Compound("+", this, c)
+      case NumberValue(num2,den2) => numsimplify(NumberValue(num*den2 + num2*den,den*den2))
+      case Unbound(sym) => simplify(Compound("+", this, sym))
+      case c:Compound => simplify(Compound("+", this, c))
     }
     def - (rhs: Value):Value = rhs match {
-      case NumberValue(num2,den2) => this + NumberValue(-num2, den2)
-      case otherwise => Compound("-", this, rhs)
+      case NumberValue(num2,den2) => numsimplify(NumberValue(num*den2 - num2*den,den*den2))
+      case otherwise => simplify(Compound("-", this, rhs))
     }
     def * (rhs: Value):Value = rhs match {
-      case NumberValue(num2,den2) => NumberValue(num2*num, den2*den)
-      case otherwise => Compound("*", this, rhs)
+      case NumberValue(num2,den2) => numsimplify(NumberValue(num2*num, den2*den))
+      case otherwise => simplify(Compound("*", this, rhs))
     }
     def / (rhs: Value):Value = rhs match {
-      case NumberValue(num2,den2) => NumberValue(num*den2, num2*den)
-      case otherwise => Compound("/", this, rhs)
+      case NumberValue(num2,den2) => numsimplify(NumberValue(num*den2, num2*den))
+      case otherwise => simplify(Compound("/", this, rhs))
     }
     def ^ (rhs: Value):Value = rhs match {
       case NumberValue(num2,den2) => {
         if (den2==1) 
-          NumberValue(num.pow(num2.toInt), den.pow(den2.toInt))
+          numsimplify(NumberValue(num.pow(num2.toInt), den.pow(den2.toInt)))
         else
           Compound("^",NumberValue(num.pow(num2.toInt), den.pow(num2.toInt)), NumberValue(1,den2))
       }
       case otherwise => Compound("^", this, rhs)
     }
     def OVER (rhs: Value):Value = rhs match {
-      case NumberValue(num2,den2) => NumberValue(num*den2, den*num2)
-      case otherwise => Compound("/", this, rhs)
+      case NumberValue(num2,den2) => numsimplify(NumberValue(num*den2, den*num2))
+      case otherwise => simplify(Compound("/", this, rhs))
     }
     
     override def toString(): String = {
@@ -68,12 +68,12 @@ object MathCode {
   
   //unbound variables
   case class Unbound(val sym:Symbol) extends Value {
-    def + (rhs: Value): Value = Compound("+",this, rhs)
-    def - (rhs: Value): Value = Compound("-",this, rhs)
-    def * (rhs: Value): Value = Compound("*",this, rhs)
-    def / (rhs: Value): Value = Compound("/",this, rhs)
-    def ^ (rhs: Value): Value = Compound("^", this, rhs)
-    def OVER (rhs: Value): Value = Compound("/", this, rhs)
+    def + (rhs: Value): Value = simplify(Compound("+",this, rhs))
+    def - (rhs: Value): Value = simplify(Compound("-",this, rhs))
+    def * (rhs: Value): Value = simplify(Compound("*",this, rhs))
+    def / (rhs: Value): Value = simplify(Compound("/",this, rhs))
+    def ^ (rhs: Value): Value = simplify(Compound("^", this, rhs))
+    def OVER (rhs: Value): Value = simplify(Compound("/", this, rhs))
     
     // Gets rid of '.
     override def toString(): String = return (sym.toString).substring(1) 
@@ -82,12 +82,12 @@ object MathCode {
    
   //expressions with unbound variables 
   case class Compound(val op: String, val lhs: Value, val rhs: Value) extends Value {
-    def + (rhs: Value): Value = Compound("+", this, rhs)
-    def - (rhs: Value): Value = Compound("-", this, rhs)
-    def * (rhs: Value): Value = Compound("*", this, rhs)
-    def / (rhs: Value): Value = Compound("/", this, rhs)
-    def ^ (rhs: Value): Value = Compound("^", this, rhs)
-    def OVER (rhs: Value): Value = Compound("/", this, rhs)
+    def + (rhs: Value): Value = simplify(Compound("+", this, rhs))
+    def - (rhs: Value): Value = simplify(Compound("-", this, rhs))
+    def * (rhs: Value): Value = simplify(Compound("*", this, rhs))
+    def / (rhs: Value): Value = simplify(Compound("/", this, rhs))
+    def ^ (rhs: Value): Value = simplify(Compound("^", this, rhs))
+    def OVER (rhs: Value): Value = simplify(Compound("/", this, rhs))
     
     
     override def toString(): String = {
@@ -219,8 +219,11 @@ object MathCode {
   //pretty print: parenthesis only when needed
   def pprint(value:Value):Unit = value match {
     case NumberValue(n,d) => {
-      if (d==1) println(n) 
-      else println(n+"/"+d)
+      var leastTerms = Simplifier.numsimplifier(NumberValue(n,d))
+      var nn = getNum(leastTerms)
+      var dd = getDen(leastTerms)
+      if (dd==1) println(nn) 
+      else println(nn+"/"+dd)
     }
     case Unbound(sym) => { 
       if (variableMap contains sym) pprint(variableMap(sym)) 
@@ -396,31 +399,15 @@ object MathCode {
     def unapply(b: BigInt) = Option(b.toInt)
   }
 
-  def simplify(v:Value, binding:Map[Symbol, Value]):Value = {
+  def simplify(v:Value, binding:Map[Symbol, Value] = variableMap):Value = 
     Simplifier.simplifier(v:Value, binding:Map[Symbol, Value])
-  }
+
+  def numsimplify(v:NumberValue):NumberValue = 
+    Simplifier.numsimplifier(v)
   
 
   // Returns the LCM of a and b
   //def lcm(a:Int, b:Int):Int = a*b / gcd(a,b) 
-
-  //Returns the greatest common denominator of a and b
-  def gcd(a:BigInt, b:BigInt):BigInt = {
-    if (a < 0) { return gcd(-a,b) }
-    if (b < 0) { return gcd(a,-b) }
-    if (a<b) { return gcd(b,a) } else {
-      var t1 = a
-      var t2 = b
-      while (t1 != t2) {
-        if (t1 > t2) {
-          t1 = t1 - t2
-        } else {
-          t2 = t2 - t1
-        }
-      }
-      return t1
-    }
-  }
   
   // For use in function bodies, to make sure there isn't anything we don't expect
   def ensureValueOnlyContainsUnboundWithSymbolicNames(value:Value, symbolicNames:Seq[Symbol]): Unit = {
