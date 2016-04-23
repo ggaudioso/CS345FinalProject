@@ -21,35 +21,7 @@ object Simplifier {
     def ^ (rhs: Value): Value = null 
     def OVER (rhs: Value): Value = null 
   }
-
   
-  
-//FRACTIONS:  --------- --------- --------- --------- --------- --------- --------- --------- ---------
-  
-  def numsimplifier(frac:NumberValue): NumberValue = {
-    var num = getNum(frac)
-    var den = getDen(frac)
-    var divide = gcd(num,den)
-    return NumberValue(num/divide, den/divide)
-  }
-  //Returns the greatest common divisor of a and b
-  def gcd(a:BigInt, b:BigInt):BigInt = {
-    if (a==0 || b==0) return 1
-    if (a < 0) { return gcd(-a,b) }
-    if (b < 0) { return gcd(a,-b) }
-    if (a<b) { return gcd(b,a) } else {
-      var t1 = a
-      var t2 = b
-      while (t1 != t2) {
-        if (t1 > t2) {
-          t1 = t1 - t2
-        } else {
-          t2 = t2 - t1
-        }
-      }
-      return t1
-    }
-  }
 
   
 //COMPOUNDS: --------- --------- --------- --------- --------- --------- --------- --------- ---------  
@@ -1156,5 +1128,28 @@ object Simplifier {
     
     return Compound(op, newLhs, newRhs) 
   }
+
+
+ 
+  //Returns the greatest common divisor of a and b
+  def gcd(a:BigInt, b:BigInt):BigInt = {
+    if (a==0 || b==0) return 1
+    if (a < 0) { return gcd(-a,b) }
+    if (b < 0) { return gcd(a,-b) }
+    if (a<b) { return gcd(b,a) } else {
+      var t1 = a
+      var t2 = b
+      while (t1 != t2) {
+        if (t1 > t2) {
+          t1 = t1 - t2
+        } else {
+          t2 = t2 - t1
+        }
+      }
+      return t1
+    }
+  }
+  
+  
 }
 

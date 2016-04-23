@@ -27,33 +27,33 @@ object MathCode {
   // Namely, a known number that isn't irrational
   case class NumberValue(val num:BigInt, val den:BigInt) extends Value {
     def + (rhs: Value):Value = rhs match {
-      case NumberValue(num2,den2) => numsimplify(NumberValue(num*den2 + num2*den,den*den2))
+      case NumberValue(num2,den2) => simplify(NumberValue(num*den2 + num2*den,den*den2))
       case Unbound(sym) => Compound("+", this, sym)
       case c:Compound => Compound("+", this, c)
     }
     def - (rhs: Value):Value = rhs match {
-      case NumberValue(num2,den2) => numsimplify(NumberValue(num*den2 - num2*den,den*den2))
+      case NumberValue(num2,den2) => simplify(NumberValue(num*den2 - num2*den,den*den2))
       case otherwise => Compound("-", this, rhs)
     }
     def * (rhs: Value):Value = rhs match {
-      case NumberValue(num2,den2) => numsimplify(NumberValue(num2*num, den2*den))
+      case NumberValue(num2,den2) => simplify(NumberValue(num2*num, den2*den))
       case otherwise => Compound("*", this, rhs)
     }
     def / (rhs: Value):Value = rhs match {
-      case NumberValue(num2,den2) => numsimplify(NumberValue(num*den2, num2*den))
+      case NumberValue(num2,den2) => simplify(NumberValue(num*den2, num2*den))
       case otherwise => Compound("/", this, rhs)
     }
     def ^ (rhs: Value):Value = rhs match {
       case NumberValue(num2,den2) => {
         if (den2==1) 
-          numsimplify(NumberValue(num.pow(num2.toInt), den.pow(den2.toInt)))
+          simplify(NumberValue(num.pow(num2.toInt), den.pow(den2.toInt)))
         else
           Compound("^",NumberValue(num.pow(num2.toInt), den.pow(num2.toInt)), NumberValue(1,den2))
       }
       case otherwise => Compound("^", this, rhs)
     }
     def OVER (rhs: Value):Value = rhs match {
-      case NumberValue(num2,den2) => numsimplify(NumberValue(num*den2, den*num2))
+      case NumberValue(num2,den2) => simplify(NumberValue(num*den2, den*num2))
       case otherwise => Compound("/", this, rhs)
     }
     
@@ -263,7 +263,7 @@ object MathCode {
   //pretty print: parenthesis only when needed
   def pprint(value:Value):Unit = value match {
     case NumberValue(n,d) => {
-      var leastTerms = Simplifier.numsimplifier(NumberValue(n,d))
+      var leastTerms = simplify(NumberValue(n,d))
       var nn = getNum(leastTerms)
       var dd = getDen(leastTerms)
       if (dd==1) println(nn) 
@@ -446,9 +446,7 @@ object MathCode {
   def simplify(v:Value, binding:Map[Symbol, Value] = variableMap):Value = 
     Simplifier.simplifier(v:Value, binding:Map[Symbol, Value])
 
-  def numsimplify(v:NumberValue):NumberValue = 
-    Simplifier.numsimplifier(v)
-  
+    
 
   // Returns the LCM of a and b
   //def lcm(a:Int, b:Int):Int = a*b / gcd(a,b) 

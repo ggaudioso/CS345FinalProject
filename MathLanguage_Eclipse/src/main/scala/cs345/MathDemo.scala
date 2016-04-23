@@ -20,7 +20,7 @@ object MathDemo {
     //derivation
     'f of 'x := -(2*'x + 2)
     pprint(derive('f('x),'x))
-    
+ 
     
     println
     println
