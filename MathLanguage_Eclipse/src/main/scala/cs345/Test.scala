@@ -177,64 +177,40 @@ object Test {
     // Should be: (mike + -1 + mike)
     print(simplifyCompound(compound3, noBinding)) 
     testResults = testResults.:+(testIfEqual(simplifyCompound(compound3, noBinding).toString(), "(mike + -1 + mike)")) 
-    print("vprint version (not tested): ") 
-    vprint(compound3) 
-    println 
     
     // Should be: (54 + mike + mike)
     print(simplifyCompound(compound5, noBinding)) 
     testResults = testResults.:+(testIfEqual(simplifyCompound(compound5, noBinding).toString(), "(54 + mike + mike)")) 
-    print("vprint version (not tested): ") 
-    vprint(compound5) 
-    println 
     
     // Should be: 0
     print(simplifyCompound(longCompoundTest, noBinding)) 
     testResults = testResults.:+(testIfEqual(simplifyCompound(longCompoundTest, noBinding).toString(), "0")) 
-    print("vprint version (not tested): ") 
-    vprint(longCompoundTest) 
-    println 
     
     // Should be: ((mike + -1 + mike) * (54 + mike + mike))
     print(simplifyCompound(test4, noBinding)) 
     testResults = testResults.:+(testIfEqual(simplifyCompound(test4, noBinding).toString(), "((mike + -1 + mike) * (54 + mike + mike))")) 
-    print("vprint version (not tested): ") 
-    vprint(test4) 
-    println 
     
     // Should be: (7 * (54 + mike + mike))
     print(simplifyCompound(test5, noBinding)) 
     testResults = testResults.:+(testIfEqual(simplifyCompound(test5, noBinding).toString(), "(7 * (54 + mike + mike))")) 
-    print("vprint version (not tested): ") 
-    vprint(test5) 
-    println 
     
     // Should be: 1
     print(simplifyCompound(test6, noBinding)) 
     testResults = testResults.:+(testIfEqual(simplifyCompound(test6, noBinding).toString(), "1")) 
-    print("vprint version (not tested): ") 
-    vprint(test6) 
-    println 
     
     // Should be: (1 ^ james)
     print(simplifyCompound(test7, noBinding)) 
     testResults = testResults.:+(testIfEqual(simplifyCompound(test7, noBinding).toString(), "(1 ^ james)")) 
-    print("vprint version (not tested): ") 
-    vprint(test7) 
-    println 
     
     // Should be: (1 ^ james)
     print(simplifyCompound(test2, noBinding)) 
     testResults = testResults.:+(testIfEqual(simplifyCompound(test2, noBinding).toString(), "(mike + james + taylorSwift + selenaGomez)")) 
-    print("vprint version (not tested): ") 
-    vprint(test2) 
-    println 
     
     for (element <- testResults) {
       if (!element) {
         println("\n\t--------------------------------------") 
         println("\t- Final simplify tests had a FAILURE") 
-        println("\t--------------------------------------") 
+        println("\t--------------------------------------\n") 
         return 
       }
     }
@@ -242,7 +218,7 @@ object Test {
     // Else, all tests passed.
     println("\n\t+++++++++++++++++++++++++++++++++++++") 
     println("\t+ ALL TESTS PASSED") 
-    println("\t+++++++++++++++++++++++++++++++++++++") 
+    println("\t+++++++++++++++++++++++++++++++++++++\n") 
   }
   
 }
