@@ -7,7 +7,7 @@ object Test {
  
   
   def main(args: Array[String]):Unit = {  
-    test()
+    testSimplify()
   }
   
   
@@ -23,9 +23,9 @@ object Test {
   }
   
   /**
-   * Arbitrary test method.
+   * Test simplification of Values.
    */
-  def test() {
+  def testSimplify() {
     
     var compound1 = Compound("+", Unbound('mike), NumberValue(3,1)) 
     var compound2 = Compound("-", NumberValue(4,1), Unbound('mike)) 
