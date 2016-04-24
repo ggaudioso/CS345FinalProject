@@ -87,7 +87,7 @@ object MathDemo {
     aprint(limit(('n+3)/'n,'n,'Infinity))
     
     println("****************************************");
-    println("* Examples of compound simplification")
+    println("* Examples of simplification")
     println("****************************************");
     'cmp1 := 'mike + 3;
     'cmp2 := 4 - 'mike;
@@ -121,7 +121,6 @@ object MathDemo {
     // (((mike + 1) - mike) ^ 3) => 1
     pprint('cmp13);
     
-    
     'cmp14 := 'cmp12 ^ 'james;
     // (((mike + 1) - mike) ^ james) => 1
     pprint('cmp14);
@@ -131,6 +130,19 @@ object MathDemo {
     'cmp17 := 'cmp16 + 'selenaGomez;
     // (((mike + james) + taylorSwift) + selenaGomez) => mike + james + taylorSwift + selenaGomez
     pprint('cmp17);
+    
+    //b * 2 + a * 2 + 8 - 1
+    'cmp18 := 'b * 2;
+    'cmp19 := 'a * 2;
+    'cmp20 := 'cmp18 + 'cmp19;
+    'cmp21 := 'cmp20 + 8;
+    'cmp22 := 'cmp21 - 1;
+    // ((((b * 2) + (a * 2) + 8) - 1) => b * 2 + a * 2 + 7
+    pprint('cmp22);
+    
+    'cmp23 := 1 + 'b + 'c + 7;
+    // (((1 + b) + c) + 7) => 8 + b + c
+    pprint('cmp23);
     
   }
 
