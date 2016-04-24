@@ -86,6 +86,51 @@ object MathDemo {
     aprint(limit('n/('n-6),'n,6))
     aprint(limit(('n+3)/'n,'n,'Infinity))
     
+    println("****************************************");
+    println("* Examples of compound simplification")
+    println("****************************************");
+    'cmp1 := 'mike + 3;
+    'cmp2 := 4 - 'mike;
+    'cmp3 := 'cmp1 - 'cmp2;
+    // ((mike + 3) - (4 - mike)) => mike + -1 + mike
+    pprint('cmp3);
+    
+    'cmp4 := 55 + 'cmp1;
+    'cmp5 := 'cmp4 - 'cmp2;
+    // ((55 + (mike + 3)) - (4 - mike)) => 54 + mike + mike
+    pprint('cmp5);
+    
+    'cmp6 := 'mike - 'mike;
+    'cmp7 := 'cmp6 + 'cmp6;
+    // ((mike - mike) + (mike - mike)) => 0
+    pprint('cmp6);
+    
+    'cmp8 := 'cmp3 * 'cmp5;
+    // (((mike + 3) - (4 - mike)) * ((55 + (mike + 3)) - (4 - mike))) =>
+    // mike * mike + mike * -1 + 54 * mike + mike * mike + mike * mike + mike * -1 + 54 * mike + mike * mike + -54
+    pprint('cmp8);
+    
+    'cmp9 := 'cmp1 + 'cmp2;
+    'cmp10 := 'cmp9 * 'cmp5;
+    // (((mike + 3) + (4 - mike)) * ((55 + (mike + 3)) - (4 - mike))) => mike * 7 + 378 + mike * 7
+    pprint('cmp10);
+    
+    'cmp11 := 'mike + 1;
+    'cmp12 := 'cmp11 - 'mike;
+    'cmp13 := 'cmp12 ^ 3
+    // (((mike + 1) - mike) ^ 3) => 1
+    pprint('cmp13);
+    
+    
+    'cmp14 := 'cmp12 ^ 'james;
+    // (((mike + 1) - mike) ^ james) => 1
+    pprint('cmp14);
+    
+    'cmp15 := 'mike + 'james;
+    'cmp16 := 'cmp15 + 'taylorSwift;
+    'cmp17 := 'cmp16 + 'selenaGomez;
+    // (((mike + james) + taylorSwift) + selenaGomez) => mike + james + taylorSwift + selenaGomez
+    pprint('cmp17);
     
   }
 
