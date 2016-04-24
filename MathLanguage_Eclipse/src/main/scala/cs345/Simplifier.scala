@@ -27,22 +27,23 @@ object Simplifier {
 //COMPOUNDS: --------- --------- --------- --------- --------- --------- --------- --------- ---------  
   
   def simplifier(v:Value, binding:Map[Symbol, Value]):Value = {
-        //println
-	//debug_print(v)
-        //println
-        val v2 = simplifyCompound_wrapper(v, binding)
-        //debug_print(v2)
-        //println
-        v2 match {
-    //v match {
+    //println
+    //debug_print(v)
+    //println
+    val v2 = simplifyCompound_wrapper(v, binding)
+    //debug_print(v2)
+    //println
+    val v3 = v2 match {
+      //v match {
       case NumberValue(n,d) => {
+        //println(n+" "+d)
         if (n == 0 && d!=0) {
-          NumberValue(0,1)
+          return NumberValue(0,1)
         } else if (d == 1) {
-          NumberValue(n,d)
+          return NumberValue(n,d)
         } else {
           val g = gcd(n,d)
-          NumberValue(n / g, d / g)
+          return NumberValue(n / g, d / g)
         }
       }
       case Compound(op, lhs:NumberValue, rhs:NumberValue) => op match {
@@ -96,6 +97,7 @@ object Simplifier {
         v2
       }
     }
+    combineUnbounds(v3)
   }
   
   
@@ -109,8 +111,8 @@ object Simplifier {
 
   def simplify_any_compound2(outer_op:String, lhs:Value, c:Compound, binding:Map[Symbol, Value]):(Boolean,Value) = c match {
     case Compound(inner_op, lhs1, rhs1) => {
-      /*println("Simplifying:")
-      debug_print(Compound(outer_op, lhs, c))*/
+      println("Simplifying:")
+      debug_print(Compound(outer_op, lhs, c))
 
       (outer_op, inner_op) match {
         // Commutative operators
@@ -130,6 +132,189 @@ object Simplifier {
   def simplifyCompound_wrapper(v:Value, binding:Map[Symbol, Value]):Value = v match {
     case c:Compound => simplifyCompound(c, binding)
     case otherwise => v
+  }
+
+
+  /**
+    * Takes a compound, merges all of the same Unbounds:
+    * a + a => 2*a
+    * a*b + a*b => 2*a*b
+    * 
+    * We receive output from the above simplify() methods, so we don't have to
+    * worry about really complicated stuff:
+    * (a+1)*b, which becomes a*b+b
+    */
+  //def combineUnbounds(c: Compound): Value = {
+  //}
+
+  class UnboundSet(contents:Map[Unbound,Value]) {
+    def add(u:Unbound, v:NumberValue) = {
+      new UnboundSet(contents + (u -> v))
+    }
+    def getcontents = contents
+    def absorb(other:UnboundSet) = {
+      println(this + " is absorbing " + other)
+      var newContents:Map[Unbound,Value] = Map()
+      contents.keys.foreach{ k =>
+        if (other.getcontents contains k) {
+          newContents += (k -> (contents(k) + other.getcontents(k)))
+        } else {
+          newContents += (k -> contents(k))
+        }
+      }
+      other.getcontents.keys.foreach{ k =>
+        if (!(contents contains k)) {
+          newContents += (k -> other.getcontents(k))
+        }
+      }
+      new UnboundSet(newContents)
+    }
+    def toCompound(): Value = {
+      var root:Value = NumberValue(1,1)
+      contents.keys.foreach{ k =>
+        root = contents(k) match {
+          case NumberValue(IntBig(1),_) =>
+            Compound("*", root, k)
+          case otherwise =>
+            Compound("*", root, Compound("^", k, contents(k)))
+        }
+      }
+      println("Converted "+this+" to:")
+      debug_print(root)
+      println
+      return root
+    }
+    override def toString(): String = {
+      var s = ""
+      contents.keys.foreach{ k =>
+        s += k + ":" + contents(k) + ","
+      }
+      s
+    }
+    override def equals(other:Any): Boolean = other match {
+      case c2:UnboundSet => {
+        contents.keys.foreach{ k =>
+          if (c2.getcontents contains k) {
+            if (c2.getcontents(k) != contents(k)) {
+              return false
+            }
+          } else {
+            return false
+          }
+        }
+        if (contents.size != c2.getcontents.size) return false
+        return true
+      }
+      case otherwise => false
+    }
+    override def hashCode:Int = {
+      return 5 // TODO: Pretty Much Random, should make this Not Terrible
+    }
+  }
+
+  def combineUnbounds(v: Value): Value = {
+    println("combineUnbounds called on:")
+    debug_print(v)
+    println
+    val (_,m) = combineUnboundsRecursive(v)
+    //m.toCompound()
+
+    // Change m into a compound
+    var root:Value = NumberValue(0,1)
+    m.keys.foreach{ k =>
+      root = m(k) match {
+        case NumberValue(IntBig(1),_) =>
+          Compound("+", root, k.toCompound())
+        case otherwise =>
+          Compound("+", root, Compound("*", k.toCompound(), m(k)))
+      }
+    }
+    return root
+  }
+
+  def combineUnboundsRecursive(v: Value): (Value, Map[UnboundSet,Value]) = v match {
+    case nv:NumberValue => (v,Map())
+    case Compound("*",nv:NumberValue,rhs) => {
+      val (lhs_v,lhs_m) = combineUnboundsRecursive(rhs)
+      println("Number times a: "+lhs_m)
+      if (lhs_m.size > 0)
+        (v,Map(lhs_m.keysIterator.next() -> Compound("*", nv, lhs_m.valuesIterator.next())))
+      else
+        (v,Map())
+    }
+    case Compound("*",rhs,nv:NumberValue) => {
+      val (lhs_v,lhs_m) = combineUnboundsRecursive(rhs)
+      if (lhs_m.size > 0)
+        (v,Map(lhs_m.keysIterator.next() -> Compound("*", nv, lhs_m.valuesIterator.next())))
+      else
+        (v,Map())
+    }
+    case Compound("*",lhs,rhs) => {
+      val (lhs_v,lhs_m) = combineUnboundsRecursive(lhs)
+      val (rhs_v,rhs_m) = combineUnboundsRecursive(rhs)
+
+      // Each map should only have a single entry, or we're hosed
+      if (lhs_m.size != 1 || rhs_m.size != 1) {
+        debug_print(lhs_v)
+        println
+        println(lhs_m)
+        debug_print(rhs_v)
+        println
+        println(rhs_m)
+        throw new Exception("lhs and rhs maps should only have 1 entry each! But probably this code can be implemented.")
+      }
+
+      // Combine the keys, add the values (remember: Each one only has 1).
+      val newkey = lhs_m.keysIterator.next().absorb(rhs_m.keysIterator.next())
+      (v,Map(newkey -> Compound("*", lhs_m.valuesIterator.next(), rhs_m.valuesIterator.next())))
+    }
+    case Compound("+",lhs,rhs) => {
+      val (lhs_v,lhs_m) = combineUnboundsRecursive(lhs)
+      val (rhs_v,rhs_m) = combineUnboundsRecursive(rhs)
+      println("Adding "+lhs_m+" to "+rhs_m)
+
+      // Merge the two: Essentially concatenation
+      var res_m:Map[UnboundSet,Value] = Map()
+      lhs_m.keys.foreach{ k =>
+        println(k)
+        if (rhs_m contains k) {
+          // Both lhs and rhs have the given key, add them
+          println("both")
+          //println("both: "+lhs_m(k)+" and "+rhs_m(k)+" go to "+(lhs_m(k)+rhs_m(k)))
+          res_m += (k -> (lhs_m(k) + rhs_m(k)))
+        } else {
+          println("only lhs")
+          // Only lhs has the key
+          res_m += (k -> lhs_m(k))
+        }
+      }
+      rhs_m.keys.foreach{ k =>
+        if (!(lhs_m contains k)) {
+          println(k+" only in rhs")
+          res_m += (k -> rhs_m(k))
+        }
+      }
+      println(res_m)
+      (v,res_m)
+    }
+    case Compound("^",lhs,nv:NumberValue) => {
+      val (lhs_v,lhs_m) = combineUnboundsRecursive(lhs)
+      var res_m:Map[UnboundSet,Value] = Map()
+      lhs_m.keys.foreach{ k =>
+        res_m += (k -> (lhs_m(k) * nv))
+      }
+      println("Exponential to a NV gives: "+res_m+" from: "+lhs_m)
+      (v,res_m)
+    }
+    case Compound(op,_,_) => {
+      throw new Exception("Haven't implemented operator "+op+" yet")
+      //(v,Map())
+    }
+    case u:Unbound => {
+      var us = new UnboundSet(Map(u -> NumberValue(1,1)))
+      (v,Map(us -> NumberValue(1,1)))
+    }
+    case otherwise => (v,Map())
   }
   
   

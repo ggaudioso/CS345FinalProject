@@ -27,7 +27,9 @@ object MathCode {
   // Namely, a known number that isn't irrational
   case class NumberValue(val num:BigInt, val den:BigInt) extends Value {
     def + (rhs: Value):Value = rhs match {
-      case NumberValue(num2,den2) => simplify(NumberValue(num*den2 + num2*den,den*den2))
+      case NumberValue(num2,den2) => {
+        simplify(NumberValue(num*den2 + num2*den,den*den2))
+      }
       case Unbound(sym) => Compound("+", this, sym)
       case c:Compound => Compound("+", this, c)
     }
