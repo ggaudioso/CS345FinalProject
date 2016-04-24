@@ -27,9 +27,9 @@ object Simplifier {
 //COMPOUNDS: --------- --------- --------- --------- --------- --------- --------- --------- ---------  
   
   def simplifier(v:Value, binding:Map[Symbol, Value]):Value = {
-    //println
-    //debug_print(v)
-    //println
+    println("Simplifying this:")
+    debug_print(v)
+    println
     val v2 = simplifyCompound_wrapper(v, binding)
     //debug_print(v2)
     //println
@@ -171,12 +171,21 @@ object Simplifier {
     }
     def toCompound(): Value = {
       var root:Value = NumberValue(1,1)
+      var isFirst = true
       contents.keys.foreach{ k =>
-        root = contents(k) match {
-          case NumberValue(IntBig(1),_) =>
-            Compound("*", root, k)
-          case otherwise =>
-            Compound("*", root, Compound("^", k, contents(k)))
+        if (isFirst) {
+          root = contents(k) match {
+            case NumberValue(IntBig(1),IntBig(1)) => k
+            case otherwise => Compound("^", k, contents(k))
+          }
+          isFirst = false
+        } else {
+          root = contents(k) match {
+            case NumberValue(IntBig(1),IntBig(1)) =>
+              Compound("*", root, k)
+            case otherwise =>
+              Compound("*", root, Compound("^", k, contents(k)))
+          }
         }
       }
       println("Converted "+this+" to:")
@@ -221,12 +230,21 @@ object Simplifier {
 
     // Change m into a compound
     var root:Value = NumberValue(0,1)
+    var isFirst = true
     m.keys.foreach{ k =>
-      root = m(k) match {
-        case NumberValue(IntBig(1),_) =>
-          Compound("+", root, k.toCompound())
-        case otherwise =>
-          Compound("+", root, Compound("*", k.toCompound(), m(k)))
+      if (isFirst) {
+        root = m(k) match {
+          case NumberValue(IntBig(1),IntBig(1)) => k.toCompound()
+          case otherwise => Compound("*", k.toCompound(), m(k))
+        }
+        isFirst = false
+      } else {
+        root = m(k) match {
+          case NumberValue(IntBig(1),IntBig(1)) =>
+            Compound("+", root, k.toCompound())
+          case otherwise =>
+            Compound("+", root, Compound("*", k.toCompound(), m(k)))
+        }
       }
     }
     return root
