@@ -11,7 +11,8 @@ object Simplifier {
    */
   case class CompoundCluster(ops: List[String], children: List[Value]) extends Value {
     
-    override def toString: String = return Simplifier.flattenCompoundClusterToString(this) 
+    override def toString: String = return Simplifier.flattenCompoundClusterToString(this)
+    override def equals(other:Any):Boolean = false // For now
     
     // These are useless and should not be used for now.
     def + (rhs: Value): Value = null 
@@ -97,7 +98,7 @@ object Simplifier {
         v2
       }
     }
-    combineUnbounds(v3)
+    simplifyCompound_wrapper(combineUnbounds(v3), binding)
   }
   
   

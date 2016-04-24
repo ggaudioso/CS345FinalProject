@@ -16,6 +16,7 @@ object MathCode {
     def unary_-(): Value = Compound("-", 0, this)
     def unary_+(): Value = this
     def OVER (rhs: Value):Value
+    def equals(other:Any):Boolean
   }
   
  
@@ -58,6 +59,11 @@ object MathCode {
       case NumberValue(num2,den2) => simplify(NumberValue(num*den2, den*num2))
       case otherwise => Compound("/", this, rhs)
     }
+
+    override def equals(other:Any):Boolean = other match {
+      case NumberValue(n2,d2) => ((num == n2) && (den == d2))
+      case otherwise => false
+    }
     
     override def toString(): String = {
        if (den == 1)
@@ -76,6 +82,11 @@ object MathCode {
     def / (rhs: Value): Value = Compound("/",this, rhs)
     def ^ (rhs: Value): Value = Compound("^", this, rhs)
     def OVER (rhs: Value): Value = Compound("/", this, rhs)
+
+    override def equals(other:Any):Boolean = other match {
+      case Unbound(s) => sym == s
+      case otherwise => false
+    }
     
     // Gets rid of '.
     override def toString(): String = return (sym.toString).substring(1) 
@@ -90,7 +101,21 @@ object MathCode {
     def / (rhs: Value): Value = Compound("/", this, rhs)
     def ^ (rhs: Value): Value = Compound("^", this, rhs)
     def OVER (rhs: Value): Value = Compound("/", this, rhs)
-    
+
+    override def equals(other:Any):Boolean = other match {
+      case Compound(op2,lhs2,rhs2) => {
+        println("Equal?")
+        debug_print(lhs2)
+        println
+        debug_print(rhs2)
+        println
+        (op == op2) && (op2 match {
+          case "+"|"*" => ((lhs2 == lhs) && (rhs2 == rhs)) || ((lhs2 == rhs) && (rhs2 == lhs))
+          case otherwise => ((lhs == lhs2) && (rhs == rhs2))
+        })
+      }
+      case otherwise => false
+    }
     
     override def toString(): String = {
       
