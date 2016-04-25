@@ -424,11 +424,33 @@ object MathCode {
       intapprox(expr,wrt,getNum(a).toDouble/getDen(a).toDouble,getNum(b).toDouble/getDen(b).toDouble)
     else {
       var indefinite = INTEGRATE(expr,wrt) //might throw exception, oh well
-      var bindb = Map(wrt->b)
-      var defb = Simplifier.getCompoundGivenBinding(indefinite,bindb)
-      var binda = Map(wrt->a)
-      var defa = Simplifier.getCompoundGivenBinding(indefinite,binda)
-      return Compound("-",defb,defa)
+      var flaga, flagb = false
+      var defa,defb = Compound("+",0,0)
+      if (isUnbound(b) && getSym(b).equals('Infinity)) {
+        defb = Simplifier.getCompoundGivenBinding(indefinite,Map(wrt->'binf))
+        flagb = true
+      }
+      else 
+       defb = Simplifier.getCompoundGivenBinding(indefinite,Map(wrt->b))
+      if (isCompound(a) && getOp(a).equals("-") 
+          && isNumberValue(getLhs(a)) && getNum(getLhs(a))==0 
+          && isUnbound(getRhs(a)) && getSym(getRhs(a)).equals('Infinity) ) { 
+        defa = Simplifier.getCompoundGivenBinding(indefinite,Map(wrt->'ainf))
+        flaga = true
+      }
+      else 
+        defa = Simplifier.getCompoundGivenBinding(indefinite,Map(wrt->a))
+      if (!flaga && !flagb) 
+        return Compound("-",defb,defa)
+      else if (flagb && !flaga) {
+        return approx(limit(Compound("-",defb,defa),'binf,'Infinity),'rrrrrrrrrr,0)
+      }
+      else if(flaga && !flagb) {
+        return approx(limit(Compound("-",defb,defa),'ainf,-'Infinity),'rrrrrrrrr,0)
+      }
+      else {
+        return integrate(expr,wrt,-'Infinity,0) + integrate(expr,wrt,0,'Infinity) //chop it
+      }
     }
   }
   //approximation using trapezoids
@@ -562,14 +584,14 @@ object MathCode {
     var starty = simplify(Simplifier.getCompoundGivenBinding(expr,Map(wrt->startx)))
     var difference:Value = 0
     var difference1:Value = 0
-    for (i <- 1 to 1000) {
-      var x =  startx + 1000*i
+    for (i <- 1 to 100) {
+      var x =  startx + 10000*i
       var y = simplify(Simplifier.getCompoundGivenBinding(expr,Map(wrt->x)))
       difference = simplify(Compound("-",y,starty))
       var diff = 0.0
       if (!isNumberValue(difference))
         diff = approx(difference,'rrrrrrrrrrrr,0) //this will throw exception if it has to
-      if (abs(diff)<=epsilon) return y
+      if (abs(diff)<=epsilon)  return y 
       starty = y
       difference1 = difference
     }
@@ -920,6 +942,19 @@ object MathCode {
     case otherwise => false
   }
   
+  private def getOp(value:Value):String = value match {
+    case Compound(o,_,_) => o
+    case otherwise => throw new Exception("get op called in something that is not a compound")
+  }
+  private def getRhs(value:Value):Value = value match {
+    case Compound(_,_,l) =>l
+    case otherwise => throw new Exception("get rhs called in something that is not a compound")
+  }
+  private def getLhs(value:Value):Value = value match {
+    case Compound(_,r,_) =>r
+    case otherwise => throw new Exception("get lhs called in something that is not a compound")
+  }
+  
   
   /**
    * Returns true iff the given Value is of type Unbound.
@@ -931,7 +966,7 @@ object MathCode {
   
   def getSym(value: Value): Symbol = value match {
     case Unbound(sym) => sym
-    case otherwise => 'youwrong //your risk to call this on st that is not numbervalue
+    case otherwise => throw new Exception("get sym called in something that is not a unbound")
   }
 
 }

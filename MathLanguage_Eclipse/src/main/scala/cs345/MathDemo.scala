@@ -57,6 +57,7 @@ object MathDemo {
     pprint(integrate('x, 'x, 'a, 'b))
     print("Integral on [0, 5]: ");
     aprint(integrate('x + ('x^2) + (2^'x), 'x, 0, 5)) //you need to put parenthesis or Scala is weird
+    aprint(integrate('exp^'x,'x,-'Infinity,0))
     println
  
     println("****************************************");
