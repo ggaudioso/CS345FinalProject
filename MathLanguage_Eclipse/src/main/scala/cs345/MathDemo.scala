@@ -27,17 +27,12 @@ object MathDemo {
     println
     
     println("***********************************");
-    println("* Examples of simplification")
+    println("* Examples of numeric simplification")
     println("***********************************");
     //simplification of fractions and conversion of doubles
     pprint(100 OVER 5)
     pprint(3.14)
-    //TODO: add examples of compound simplification 
     println
-    
-    // TODO: Add the examples from the doc (which are also in Mike's
-    // regression tests.  Note: Many of them do not work currently
-    // due to bugs in simplify().
     
     println("***********************************");
     println("* Examples of derivation")
@@ -85,6 +80,17 @@ object MathDemo {
     println("****************************************");
     aprint(limit('n/('n-6),'n,6))
     aprint(limit(('n+3)/'n,'n,'Infinity))
+    aprint(limit('exp^(-'x),'x,'Infinity))
+    println
+    
+    
+    println("****************************************");
+    println("* Examples of predefined functions")
+    println("****************************************");
+    pprint(derive('cos^'x,'x))
+    aprint(integrate('exp^'x,'x,3,5))   
+    println
+    
     
     println("****************************************");
     println("* Examples of simplification")
@@ -153,7 +159,6 @@ object MathDemo {
     //    So, please take a moment to look at the demo add examples of what you implemented 
     //       in the demo, and report it in the documentation. 
     //    Thanks :)   
-    
     
     demo    //comment if you don't want to see, but leave it uncommented in committed code
     //pretty examples go in the demo

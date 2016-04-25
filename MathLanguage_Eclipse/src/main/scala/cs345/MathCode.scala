@@ -1,5 +1,5 @@
 import scala.language.implicitConversions
-import scala.math.{ pow, min, log, abs }
+import scala.math.{ pow, min, log, abs, exp, sin, tan, sqrt, cos, rint }
 
 object MathCode {
 
@@ -110,7 +110,7 @@ object MathCode {
   implicit def Int2Value(x:Int):NumberValue = NumberValue(x,1)
   implicit def Double2Value(x:Double):Value = {
     var decimals = (x.toString).length - (x.toString).indexOf('.') -1
-    decimals = min(decimals, 4) //higher precision might cause overflow in operations :(
+    decimals = min(decimals, 5) 
     val digits = pow(10,decimals)
     val num = (x*digits).toInt
     val den = digits.toInt
@@ -328,8 +328,24 @@ object MathCode {
           Compound("*", DERIVE(lhs,wrt),Compound("*",rhs,Compound("^",lhs,Compound("-",rhs,1))))
         else if (!ishere(lhs,wrt) && !ishere(rhs,wrt))
           0
-        else if (!ishere(lhs,wrt) && ishere(rhs,wrt))
-          Compound("*",Compound(op, lhs, rhs), Compound("*",DERIVE(rhs,wrt),Compound("^",'ln,lhs))) //ln^x means ln(x)
+        else if (!ishere(lhs,wrt) && ishere(rhs,wrt)) {
+          if (!isknownfunction(Compound(op, lhs, rhs)))
+            Compound("*",Compound(op, lhs, rhs), Compound("*",DERIVE(rhs,wrt),Compound("^",'ln,lhs))) //ln^x means ln(x)
+          else {
+            var funder = Compound("+",0,0)
+            getSym(lhs) match {
+              case 'ln => funder = Compound("/",1,rhs)
+              case 'log => funder = Compound("/",1, Compound("*",rhs,Compound("^",'ln,10)))
+              case 'exp => funder = Compound(op, lhs, rhs)
+              case 'sin => funder = Compound("^", 'cos, rhs)
+              case 'cos => funder = Compound("-",0,Compound("^", 'sin, rhs))
+              case 'tan => funder = Compound("+",1,Compound("^",Compound("^",'tan,rhs),2))
+              case 'sqrt => funder = Compound("/",1,Compound("*",2,Compound("^",'sqrt,rhs)))
+              case otherwise => throw new Exception("this should never happen")
+            }
+            return Compound("*", funder, DERIVE(rhs,wrt))
+          }
+        }
         else throw new Exception("derivative not implemented")
       }
     }
@@ -383,6 +399,20 @@ object MathCode {
           Compound("/", Compound("/",Compound("^",lhs,Compound("+",rhs,1)),Compound("+",rhs,1)) ,DERIVE(lhs,wrt))
         else if (!ishere(lhs,wrt) && !ishere(rhs,wrt))
           Compound("*",Compound(op, lhs, rhs),wrt)
+        else if (isknownfunction(Compound(op, lhs, rhs))) {
+            var funint = Compound("+",0,0)
+            getSym(lhs) match {
+              case 'ln => funint = Compound("*",rhs,Compound("-",Compound(op,lhs,rhs),1))
+              case 'log => funint = Compound("/",Compound("*",rhs,Compound("-",Compound(op,lhs,rhs),1)),Compound("^",'ln,10))
+              case 'exp => funint = Compound(op, lhs, rhs)
+              case 'sin => funint = Compound("-",0,Compound("^", 'cos, rhs))
+              case 'cos => funint = Compound("^", 'sin, rhs)
+              case 'tan => funint = Compound("-",0,Compound("^",'ln,Compound("^",'cos,rhs)))
+              case 'sqrt => funint = Compound("/",Compound("*",2,Compound("^",rhs,1.5)),3)
+              case otherwise => throw new Exception("this should never happen")
+            }
+            return Compound("/", funint, DERIVE(rhs,wrt))
+        }
         else throw new Exception("integral not implemented")
       }
     }
@@ -404,7 +434,7 @@ object MathCode {
   //approximation using trapezoids
   private def intapprox(expr:Value,wrt:Symbol,a:Double,b:Double):Value = {
     var fun = Compound("+",expr,0) //need compound later
-    var num = 10000  
+    var num = 10  
     var heigths = 0.0
     var delta = (b-a)/num.toDouble
     for (i <- 0 to num) {
@@ -417,9 +447,16 @@ object MathCode {
   }
   private def approx(what:Value,wrt:Symbol,x:Double):Double = what match {
     case NumberValue(n,d) => return n.toDouble/d.toDouble
-    case Unbound(sym) => if (sym==wrt) return x else throw new Exception("cannot approximate variables")
+    case Unbound(sym) => { 
+      if (sym==wrt) return x
+      else if (knownVariables.contains(sym))
+        return knownVariables(sym)
+      else { pprint(sym); throw new Exception("cannot approximate variables") }
+    }
     case Compound(o,l,r) => {
-      o match {
+      if (isknownfunction(Compound(o,l,r))) 
+        approxknownfunction(Simplifier.getCompoundGivenBinding(Compound(o,l,r),Map(wrt->x)))
+      else o match {
         case "+" => return approx(l,wrt,x) + approx(r,wrt,x)
         case "-" => return approx(l,wrt,x) - approx(r,wrt,x)
         case "*" => return approx(l,wrt,x) * approx(r,wrt,x)
@@ -432,7 +469,7 @@ object MathCode {
   
   
   //solves lhs=rhs to return wrt = expression (pulls out wrt)
-  //assumes wrt appears once total
+  //assumes wrt appears once total and be at degree 1, and does not deal with known functions
   def solve(lhs:Value,rhs:Value,wrt:Symbol):Value = {
     if (isUnbound(lhs) && getSym(lhs).equals(wrt)) return rhs
     if (isUnbound(rhs) && getSym(rhs).equals(wrt)) return lhs
@@ -491,51 +528,92 @@ object MathCode {
   }
   
   //takes the limit of "expr" as "wrt" goes to "where"
-  def limit(expr:Value,wrt:Symbol,where:Value): Value = simplify(expr) match {    
-    case NumberValue(n,d) => NumberValue(n,d)
-    case Unbound(sym) => if (wrt==sym) where else sym
-    case Compound(o,l,r) => where match {
-      case Compound(_,_,_) => throw new Exception("limit cannot go to expression")
-      case NumberValue(n,d) => Simplifier.getCompoundGivenBinding(Compound(o,l,r), Map(wrt->NumberValue(n,d)))
-      case Unbound(sym) => { 
-        if (sym=='Infinity) { 
-          if (!ishere(expr,wrt)) expr
-          else gotoinf(Compound(o,l,r),wrt)
+  def limit(expr:Value,wrt:Symbol,where:Value): Value =  {  
+    simplify(expr) match {
+      case NumberValue(n,d) => NumberValue(n,d)
+      case Unbound(sym) => if (wrt==sym) where else sym
+      case Compound(o,l,r) => where match {
+        case Compound(oo,ll,rr) => {
+          if (oo.equals("-") && isNumberValue(ll) && getNum(ll)==0 && isUnbound(rr) && getSym(rr).equals('Infinity)) {
+            var negwrt = Compound("-",0,wrt)
+            var newcompound = Simplifier.getCompoundGivenBinding(Compound(o,l,r), Map(wrt->negwrt))
+            return limit(newcompound,wrt,'Infinity)
+          }
+          throw new Exception("limit cannot go to expression")
         }
-        else Simplifier.getCompoundGivenBinding(Compound(o,l,r), Map(wrt->sym))
+        case NumberValue(n,d) => Simplifier.getCompoundGivenBinding(Compound(o,l,r), Map(wrt->NumberValue(n,d)))
+        case Unbound(sym) => { 
+          if (sym=='Infinity) {
+            if (!ishere(expr,wrt)) { println("here"); expr }
+            else gotoinf(Compound(o,l,r),wrt)
+          }
+          else Simplifier.getCompoundGivenBinding(Compound(o,l,r), Map(wrt->sym))
+        }
       }
     }
   }
+  //helper for limit
   private def gotoinf(expr:Compound,wrt:Symbol):Value = { 
     //Uses the definition of limit. 
     //If the expression stabilizes around a value as wrt increases, then the limit is that value
     //If the expression keeps growing as wrt increases, then the limit is infinity
-    var epsilon = 0.0001
+    var epsilon = 0.00001
     var startx = 100
     var starty = simplify(Simplifier.getCompoundGivenBinding(expr,Map(wrt->startx)))
     var difference:Value = 0
-    for (i <- 1 to 10) {
-      var x = startx + 1000*i
+    var difference1:Value = 0
+    for (i <- 1 to 1000) {
+      var x =  startx + 1000*i
       var y = simplify(Simplifier.getCompoundGivenBinding(expr,Map(wrt->x)))
       difference = simplify(Compound("-",y,starty))
-      difference match {
-        case NumberValue(n,d) => {
-          var diff = n.toDouble/d.toDouble
-          if (abs(diff)<=epsilon) return y
-        }
-        case otherwise => pprint(difference); throw new Exception("difference is not a simple number")
-      }
+      var diff = 0.0
+      if (!isNumberValue(difference))
+        diff = approx(difference,'rrrrrrrrrrrr,0) //this will throw exception if it has to
+      if (abs(diff)<=epsilon) return y
       starty = y
+      difference1 = difference
     }
-    difference match {
-      case NumberValue(n,d) => {
-        var diff = n.toDouble/d.toDouble
-        if (diff>0) return 'Infinity
-        else return Compound("-",0,'Infinity)
-      }
-      case otherwise => throw new Exception("difference is not a simple number")
+    var diff = 0.0
+    var diff1 = 0.0
+    if (!isNumberValue(difference))
+      diff = approx(difference,'rrrrrrrrrrrr,0) //this will throw exception if it has to
+    if (!isNumberValue(difference1)) 
+      diff1 = approx(difference,'rrrrrrrrrrrr,0) //this will throw exception if it has to
+    if (diff1*diff < 0) return 'Oscillating //hardly ever finds this, but whatever.
+    else if (diff>0) return 'Infinity
+    else return Compound("-",0,'Infinity)
+  }
+  
+  //checks if symbol^something actually is a known function
+  //here defined all the known functions, also
+  private def isknownfunction(what:Compound):Boolean = {
+    if (!what.op.equals("^")) false
+    else if (!isUnbound(what.lhs)) false
+    else {
+      var name = getSym(what.lhs)
+      if (name.equals('ln) || name.equals('log) || name.equals('exp)   //natural log, base 10 log, e to the
+          || name.equals('sin) || name.equals('cos) || name.equals('tan) //sine, cosine, tangent
+          || name.equals('sqrt))  //square root
+         //can add more
+        true
+      else false
     }
   }
+  //returns approximation using known function, if applied to a number
+  private def approxknownfunction(what:Compound):Double =  {
+    if (!isknownfunction(what)) { pprint(what); throw new Exception(".. this is not a known function") }
+    var arg = approx(what.rhs,'rrrrrrrrr,0) //this will throw an exception if it has to
+    getSym(what.lhs) match {
+      case 'ln => log(arg)
+      case 'log => log(arg)/log(10)
+      case 'exp => exp(arg)
+      case 'sin => sin(arg)
+      case 'cos => cos(arg)
+      case 'tan => tan(arg)
+      case 'sqrt => sqrt(arg)
+    }
+  }
+  
   
   
   //***************************************************************************
@@ -566,22 +644,29 @@ object MathCode {
   //same as pretty print but approximates fractions and known variables such as e or pi
   def aprint(value:Value):Unit = value match {
     case NumberValue(n,d) => { 
-      if (d!= 0) println(n.toDouble/d.toDouble) 
+      if (d!= 0) println((rint(n.toDouble/d.toDouble* numdigits))/numdigits) 
       else if (n==0) println("Undefined")
       else println("Infinity")
     }
     case Unbound(sym) => { 
-      if (variableMap contains sym) aprint(variableMap(sym))
-      else if (knownVariables contains sym) aprint(knownVariables(sym))
+      if (variableMap contains sym) pprinthelp((variableMap(sym)),true)
+      else if (knownVariables contains sym) { 
+        pprinthelp(knownVariables(sym),true)
+        println
+      }
       else println((sym.toString).substring(1))
     }
     case Compound(o,r,l) => {
       var bounded1 = Simplifier.getCompoundGivenBinding(Compound(o,r,l),variableMap)
-      var bounded2 = Simplifier.getCompoundGivenBinding(bounded1,knownVariables)
+      var bounded2 = Simplifier.getCompoundGivenBinding(bounded1,knownVariablesValue)
       pprinthelp(simplify(bounded2,variableMap),true) 
       println  
     }
   }
+   
+  private val numdigits = 100000 //number of zeros here = number of decimal places in print
+                                 //numdigits = 1 -> prints closest int
+                                 //numdigits = 100000 -> prints 5 digits after .
   
   //pprint helpers
   private val operators : String = "+-*/^" //add more if needed later
@@ -593,31 +678,40 @@ object MathCode {
       if (!approximate) { if (d==1) print(n) else print(n+"/"+d) }
       else {
         if (n==0 && d==0) print("Undefined")
-        else print(n.toDouble/d.toDouble) 
+        else print((rint(n.toDouble/d.toDouble* numdigits))/numdigits) 
       }
     }
     case Unbound(sym) => print(sym.toString().substring(1))
     case Compound(op,lhs,rhs) => {
       if (op.equals("-") && isNumberValue(lhs) && getNum(lhs) == 0) {
         print(op)
-        if (isCompound(rhs)) {
+        rhs match {
+          case Compound(oo,ll,rr) => {
+            if (!isknownfunction(Compound(oo,ll,rr))) {
+              print("(")
+              pprinthelp(rhs,approximate)
+              print(")")
+            }
+            else pprinthelp(rhs,approximate)
+          }
+          case otherwise => pprinthelp(rhs,approximate)
+        }
+        return
+      }
+      if (isknownfunction(Compound(op,lhs,rhs))) {
+        if (approximate && isNumberValue(rhs)) 
+          print((rint(approxknownfunction(Compound(op,lhs,rhs))*numdigits))/numdigits)
+        else {
+          pprinthelp(lhs, approximate)
           print("(")
           pprinthelp(rhs,approximate)
           print(")")
         }
-        else 
-          pprinthelp(rhs,approximate)
         return
       }
-      if (op.equals("^") && isUnbound(lhs) && getSym(lhs)=='ln) {
-        if (approximate && isNumberValue(rhs)) 
-          print(log(getNum(rhs).toDouble/getDen(rhs).toDouble))
-        else {
-          print("ln(")
-          pprinthelp(rhs,approximate)
-          print(")")
-        }
-          return
+      if (op.equals("/") && isNumberValue(rhs) && getNum(rhs)==getDen(rhs)) {
+        pprinthelp(lhs,approximate)
+        return
       }
       var parlhs = false 
       var parrhs = false
@@ -703,7 +797,8 @@ object MathCode {
   
   //known values such as pi, e .. can add more
   //if we increase precision, increase precision of these as well.. but not too much or operations with lots of these wil overflow and mess up
-  var knownVariables:Map[Symbol,Value] = Map(('e,2.7182), ('pi,3.1415))
+  var knownVariables:Map[Symbol,Double] = Map(('e,2.7182818), ('pi,3.14159265))
+  var knownVariablesValue:Map[Symbol,Value] = Map(('e,2.7182818), ('pi,3.14159265)) //so Scala is happy everywhere
   
   //look up a variable given the binding
   def variableLookupFromBinding(sym:Symbol, binding:Map[Symbol, Value]):Value = {
