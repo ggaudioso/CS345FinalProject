@@ -424,6 +424,7 @@ object MathCode {
       intapprox(expr,wrt,getNum(a).toDouble/getDen(a).toDouble,getNum(b).toDouble/getDen(b).toDouble)
     else {
       var indefinite = INTEGRATE(expr,wrt) //might throw exception, oh well
+      pprint(indefinite)
       var flaga, flagb = false
       var defa,defb = Compound("+",0,0)
       if (isUnbound(b) && getSym(b).equals('Infinity)) {
@@ -443,10 +444,20 @@ object MathCode {
       if (!flaga && !flagb) 
         return Compound("-",defb,defa)
       else if (flagb && !flaga) {
-        return approx(limit(Compound("-",defb,defa),'binf,'Infinity),'rrrrrrrrrr,0)
+        var lim = limit(Compound("-",defb,defa),'binf,'Infinity)
+        if (isUnbound(lim) && getSym(lim).equals('Infinity)) return 'Infinity
+        if (isCompound(lim) && getOp(lim).equals("-") && isNumberValue(getLhs(lim)) && getNum(getLhs(lim))==0
+             && isUnbound(getRhs(lim)) && getSym(getRhs(lim)).equals('Infinity))
+           return -'Infinity
+        else return approx(lim,'rrrrrrrrrr,0)
       }
       else if(flaga && !flagb) {
-        return approx(limit(Compound("-",defb,defa),'ainf,-'Infinity),'rrrrrrrrr,0)
+        var lim = limit(Compound("-",defb,defa),'ainf,-'Infinity)
+         if (isUnbound(lim) && getSym(lim).equals('Infinity)) return 'Infinity
+         if (isCompound(lim) && getOp(lim).equals("-") && isNumberValue(getLhs(lim)) && getNum(getLhs(lim))==0
+             && isUnbound(getRhs(lim)) && getSym(getRhs(lim)).equals('Infinity))
+           return -'Infinity
+         else return approx(lim,'rrrrrrrrr,0)
       }
       else {
         return integrate(expr,wrt,-'Infinity,0) + integrate(expr,wrt,0,'Infinity) //chop it
@@ -550,7 +561,7 @@ object MathCode {
   }
   
   //takes the limit of "expr" as "wrt" goes to "where"
-  def limit(expr:Value,wrt:Symbol,where:Value): Value =  {  
+  def limit(expr:Value,wrt:Symbol,where:Value): Value =  { 
     simplify(expr) match {
       case NumberValue(n,d) => NumberValue(n,d)
       case Unbound(sym) => if (wrt==sym) where else sym
@@ -566,7 +577,7 @@ object MathCode {
         case NumberValue(n,d) => Simplifier.getCompoundGivenBinding(Compound(o,l,r), Map(wrt->NumberValue(n,d)))
         case Unbound(sym) => { 
           if (sym=='Infinity) {
-            if (!ishere(expr,wrt)) { println("here"); expr }
+            if (!ishere(expr,wrt)) expr 
             else gotoinf(Compound(o,l,r),wrt)
           }
           else Simplifier.getCompoundGivenBinding(Compound(o,l,r), Map(wrt->sym))
@@ -585,11 +596,11 @@ object MathCode {
     var difference:Value = 0
     var difference1:Value = 0
     for (i <- 1 to 100) {
-      var x =  startx + 10000*i
+      var x =  startx + 1000*i
       var y = simplify(Simplifier.getCompoundGivenBinding(expr,Map(wrt->x)))
       difference = simplify(Compound("-",y,starty))
       var diff = 0.0
-      if (!isNumberValue(difference))
+      //if (!isNumberValue(difference)) 
         diff = approx(difference,'rrrrrrrrrrrr,0) //this will throw exception if it has to
       if (abs(diff)<=epsilon)  return y 
       starty = y
@@ -636,6 +647,24 @@ object MathCode {
     }
   }
   
+  //takes summation of expression with variable wrt going from a to b
+  def summation(expr:Value,wrt:Symbol,a:Value,b:Value):Value = {
+    var compexpr = Compound("+",expr,0)
+    if (isNumberValue(a) && isNumberValue(b)) {
+      if (getDen(a)!=1 || getDen(b)!=1) throw new Exception("Summation is only defined with integer bounds")
+      else {
+        var aint = getNum(a).toInt
+        var bint = getNum(b).toInt
+        var sum:Value = Compound("+",0,0)
+        for (i <- aint to bint) {
+          sum += Simplifier.getCompoundGivenBinding(compexpr, Map(wrt->i))
+        }
+        return simplify(sum)
+      }
+    }
+    else throw new Exception("hold on")
+  }
+  
   
   
   //***************************************************************************
@@ -653,6 +682,7 @@ object MathCode {
     }
     case Unbound(sym) => { 
       if (variableMap contains sym) pprint(variableMap(sym)) 
+      else if ( (functionMap contains sym) || (piecewiseFunctionMap contains sym)) vprint(sym)
       else println((sym.toString).substring(1))
     }
     case Compound(o,r,l) => {
@@ -703,7 +733,11 @@ object MathCode {
         else print((rint(n.toDouble/d.toDouble* numdigits))/numdigits) 
       }
     }
-    case Unbound(sym) => print(sym.toString().substring(1))
+    case Unbound(sym) => { 
+      if (variableMap contains sym) pprinthelp(variableMap(sym),approximate) 
+      else if ( (functionMap contains sym) || (piecewiseFunctionMap contains sym)) vprint(sym)
+      else print((sym.toString).substring(1))
+    }
     case Compound(op,lhs,rhs) => {
       if (op.equals("-") && isNumberValue(lhs) && getNum(lhs) == 0) {
         print(op)
