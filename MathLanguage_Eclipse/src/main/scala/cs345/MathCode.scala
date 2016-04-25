@@ -662,9 +662,30 @@ object MathCode {
         return simplify(sum)
       }
     }
-    else throw new Exception("hold on")
+    else if (isUnbound(b) && getSym(b).equals('Infinity) && isNumberValue(a)) {
+      sumtoinf(expr,wrt,getNum(a).toInt)
+    }
+    else
+      throw new Exception("summation not implemented")
   }
   
+  private def sumtoinf(expr:Value,wrt:Symbol,aa:Int):Value = {
+    var compexpr = Compound("+",expr,0)
+    var a:Value = Simplifier.getCompoundGivenBinding(compexpr, Map(wrt->aa))
+    var sum:Value = a
+    var b:Value = a
+    var start = aa+1
+    for (i <- start to 1000) {
+      a=b
+      b = Simplifier.getCompoundGivenBinding(compexpr, Map(wrt->i))
+      var diff = abs(approx(simplify(b-a),'rrrrrrrrr,0))
+      if (diff<0.000001) return sum
+      sum += b
+    }
+    var diff = approx(simplify(b-a),'rrrrrrrrr,0)
+    if (diff<0.000001) return sum
+    else return 'Infinity
+  }
   
   
   //***************************************************************************

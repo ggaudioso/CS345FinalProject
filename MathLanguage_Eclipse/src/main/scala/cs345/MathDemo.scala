@@ -84,6 +84,13 @@ object MathDemo {
     aprint(limit('exp^(-'x),'x,'Infinity))
     println
     
+    println("****************************************");
+    println("* Examples of summations and products")
+    println("****************************************");
+    pprint(summation('n,'n,0,'Infinity))
+    aprint(summation(1/(2^'n),'n,0,'Infinity))
+    println("products coming soon")
+    println
     
     println("****************************************");
     println("* Examples of predefined functions")
