@@ -332,6 +332,32 @@ object Simplifier {
       //println(res_m)
       (v,res_m)
     }
+    case Compound("-",lhs,rhs) => {
+      val (lhs_v,lhs_m) = combineUnboundsRecursive(lhs)
+      val (rhs_v,rhs_m) = combineUnboundsRecursive(rhs)
+
+      // Merge the two: Essentially concatenation
+      var res_m:Map[UnboundSet,Value] = Map()
+      lhs_m.keys.foreach{ k =>
+        //println(k)
+        if (rhs_m contains k) {
+          // Both lhs and rhs have the given key, sub them
+          res_m += (k -> (lhs_m(k) - rhs_m(k)))
+        } else {
+          //println("only lhs")
+          // Only lhs has the key
+          res_m += (k -> lhs_m(k))
+        }
+      }
+      rhs_m.keys.foreach{ k =>
+        if (!(lhs_m contains k)) {
+          //println(k+" only in rhs")
+          res_m += (k -> -rhs_m(k))
+        }
+      }
+      //println(res_m)
+      (v,res_m)
+    }
     case Compound("^",lhs,nv:NumberValue) => {
       val (lhs_v,lhs_m) = combineUnboundsRecursive(lhs)
       var res_m:Map[UnboundSet,Value] = Map()
