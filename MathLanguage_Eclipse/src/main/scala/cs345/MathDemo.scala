@@ -85,11 +85,12 @@ object MathDemo {
     println
     
     println("****************************************");
-    println("* Examples of summations and products")
+    println("* Examples of summations, products and factorials")
     println("****************************************");
     pprint(summation('n,'n,0,'Infinity))
     aprint(summation(1/(2^'n),'n,0,'Infinity))
-    println("products coming soon")
+    aprint(product('i,'i,1,5))
+    aprint(factorial(7))
     println
     
     println("****************************************");

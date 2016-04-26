@@ -649,43 +649,74 @@ object MathCode {
   
   //takes summation of expression with variable wrt going from a to b
   def summation(expr:Value,wrt:Symbol,a:Value,b:Value):Value = {
-    var compexpr = Compound("+",expr,0)
+    dosumprod(expr,wrt,a,b,true)
+  }
+  
+  //takes product of expression with variable wrt going from a to b
+  def product(expr:Value,wrt:Symbol,a:Value,b:Value):Value = {
+    dosumprod(expr,wrt,a,b,false)
+  }
+  
+  //helpers for summation and product
+  private def dosumprod(expr:Value,wrt:Symbol,a:Value,b:Value,issum:Boolean):Value = {
+      var compexpr = Compound("+",expr,0)
     if (isNumberValue(a) && isNumberValue(b)) {
       if (getDen(a)!=1 || getDen(b)!=1) throw new Exception("Summation is only defined with integer bounds")
       else {
         var aint = getNum(a).toInt
         var bint = getNum(b).toInt
-        var sum:Value = Compound("+",0,0)
+        var sumorprod:Value = if (issum) Compound("+",0,0) else Compound("+",1,0)
         for (i <- aint to bint) {
-          sum += Simplifier.getCompoundGivenBinding(compexpr, Map(wrt->i))
+          if (issum)
+            sumorprod += Simplifier.getCompoundGivenBinding(compexpr, Map(wrt->i))
+          else 
+            sumorprod *= Simplifier.getCompoundGivenBinding(compexpr, Map(wrt->i))
         }
-        return simplify(sum)
+        return simplify(sumorprod)
       }
     }
     else if (isUnbound(b) && getSym(b).equals('Infinity) && isNumberValue(a)) {
-      sumtoinf(expr,wrt,getNum(a).toInt)
+      sumtoinf(expr,wrt,getNum(a).toInt,issum)
     }
     else
       throw new Exception("summation not implemented")
   }
-  
-  private def sumtoinf(expr:Value,wrt:Symbol,aa:Int):Value = {
+  private def sumtoinf(expr:Value,wrt:Symbol,aa:Int,issum:Boolean):Value = {
+    var epsilon = 0.000001
     var compexpr = Compound("+",expr,0)
     var a:Value = Simplifier.getCompoundGivenBinding(compexpr, Map(wrt->aa))
-    var sum:Value = a
+    var sumorprod:Value = a
     var b:Value = a
     var start = aa+1
     for (i <- start to 1000) {
       a=b
       b = Simplifier.getCompoundGivenBinding(compexpr, Map(wrt->i))
       var diff = abs(approx(simplify(b-a),'rrrrrrrrr,0))
-      if (diff<0.000001) return sum
-      sum += b
+      if (diff<epsilon) return sumorprod
+      if (issum)
+        sumorprod += b
+      else 
+        sumorprod *= b
     }
     var diff = approx(simplify(b-a),'rrrrrrrrr,0)
-    if (diff<0.000001) return sum
+    if (diff<epsilon) return sumorprod
     else return 'Infinity
   }
+  
+  //returns the factorial of the argument
+  def factorial(expr:Value):Value = simplify(expr) match {
+    case NumberValue(n,d) => {
+      if (d!=1) throw new Exception("factorial is only defined on integers")
+      else if (n==0)  1
+      else product('i,'i,1,n.toInt)
+    }
+    case Unbound(sym) => {
+      if (variableMap contains sym) factorial(variableMap(sym))
+      else throw new Exception("factorial only defined on known variables")
+    }
+    case otherwise => throw new Exception("factorial is only defined on integers")
+  }
+  
   
   
   //***************************************************************************
