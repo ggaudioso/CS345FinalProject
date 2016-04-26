@@ -1,3 +1,66 @@
+//  ***********************************************************************************************************************************
+//
+//
+//    ******      ******        ****       ***************   ***       ***          ***
+//    *** ***    *** ***      ***  ***     ***************   ***       ***          ***
+//    ***  ***  ***  ***    ***      ***         ***         ***       ***          ***
+//    ***   ******   ***   ***        ***        ***         *************          ***
+//    ***    ****    ***   **************        ***         *************          ***
+//    ***            ***   **************        ***         ***       ***        
+//    ***            ***   ***        ***        ***         ***       ***          ***
+//    ***            ***   ***        ***        ***         ***       ***          ***
+//
+//
+//  MathCode.scala  : DSL for Scala implementing Math features 
+//  MathDemo.scala  : Little Demonstration showing features
+//  Simplifier.scala: helper of mathcode, simplifier of expression
+//  Test.scala      : developers' tests
+//  DOCUMENTATIO TO BE ADDED!
+//  
+//  Contributors: Josh Cannon, Mike Feilbach, Ginevra Gaudioso, Lane Kolbly,
+//
+//  Values:               1 OVER 4            fraction 1/4
+//                        1.234               real number
+//                        'x                  parameter x (unbound)
+//                        'x +4*'b            expression of the above. Operators are: + (plus), - (both unary and binary minus), * (times), / (divide), ^ (exponent).
+//                        'Infinity           infinity
+//                        -'Infinity          -infinity
+//
+//  Variable Declaration: 'a := 'b + 3        same as a=b+3  (b does not have to be defined, can be a parameter)
+//  Function Declaration: 'f of 'x := 'x + 1  same as f(x)=x+1
+//                        'p of ('x, 'y) when ('x === 'y) := 0 when() 'x*'y 
+//                                            same as p(x,y) = 0 if x=y, x*y otherwise
+//  Function Call:        'f('x)              calls stored function f with argument x
+//                        'sin^'x             calls predefined function sin(x). List of predefined functions: sin, cos, tan, ln, log, exp, sqrt
+//
+//  Printing:             pprint('a)          prints the value associated with a in its simplified form, or just a if such value does not exist
+//                        aprint('a)          prints an approximation of a (ie 3/4 = 0.75, 'pi = 3.1415, and so on)
+//  Derive:               derive(expression, variable)
+//                                            Returns the derivative of the expression with respect to the variable. Use as argument of pprint to print result
+//  Integrate:            integrate(expression, variable)
+//                                            Returns the indefinite integral of the expression with respect to the variable. Use as argument of pprint to print result
+//                        integrate(expression, variable, a, b)
+//                                            Returns the definite integral from a t b of the expression with respect to the variable. Use as argument of pprint or a print to print result
+//  Solve one equation:   solve(lhs,rhs,unknown)
+//                                            From lhs=rhs returns unknown=expression: solves equation lhs=rhs for variable unknown. Use as argument of pprint or aprint to print result
+//  Solve of system of two equations in two unknowns:
+//                        [COMING SOON]
+//  Limits:               limit(expr,variable,value)
+//                                            Returns the limit of the expression as the variable approaches value. Use as argument of pprint or aprint to print result
+//  Summations:           summation(expr,variable,from,to)
+//                                            Returns summation of the expression when variable goes from "from" to "to". Use as argument of pprint or aprint to print result
+//  Products:             product(expr,variable,from,to)
+//                                            Returns product of the expression when variable goes from "from" to "to". Use as argument of pprint or aprint to print result
+//  Factorial:            factorial(value)    Returns the factorial of the value. Use as argument of pprint or aprint to print result
+//
+// 
+//  See full documentation (WHERE?) for a full list of features and more detailed explanations
+//
+//
+//  ***********************************************************************************************************************************
+
+
+
 import scala.language.implicitConversions
 import scala.math.{ pow, min, log, abs, exp, sin, tan, sqrt, cos, rint }
 
