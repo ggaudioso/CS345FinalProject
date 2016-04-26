@@ -28,9 +28,9 @@ object Simplifier {
 //COMPOUNDS: --------- --------- --------- --------- --------- --------- --------- --------- ---------  
   
   def simplifier(v:Value, binding:Map[Symbol, Value]):Value = {
-    println("Simplifying this:")
+    /*println("Simplifying this:")
     debug_print(v)
-    println
+    println*/
     val v2 = simplifyCompound_wrapper(v, binding)
     //debug_print(v2)
     //println
@@ -154,7 +154,7 @@ object Simplifier {
     }
     def getcontents = contents
     def absorb(other:UnboundSet) = {
-      println(this + " is absorbing " + other)
+      //println(this + " is absorbing " + other)
       var newContents:Map[Unbound,Value] = Map()
       contents.keys.foreach{ k =>
         if (other.getcontents contains k) {
@@ -174,24 +174,40 @@ object Simplifier {
       var root:Value = NumberValue(1,1)
       var isFirst = true
       contents.keys.foreach{ k =>
-        if (isFirst) {
-          root = contents(k) match {
-            case NumberValue(IntBig(1),IntBig(1)) => k
-            case otherwise => Compound("^", k, contents(k))
+        // TODO: Less special casing!
+        k match {
+          case Unbound('numbervaluedeadbeefasf) => {
+            if (isFirst) {
+              root = NumberValue(1,1)
+              isFirst = false
+            } else {
+              root = contents(k) match {
+                case NumberValue(IntBig(1),IntBig(1)) => root
+                case otherwise => Compound("^", k, contents(k))
+              }
+            }
           }
-          isFirst = false
-        } else {
-          root = contents(k) match {
-            case NumberValue(IntBig(1),IntBig(1)) =>
-              Compound("*", root, k)
-            case otherwise =>
-              Compound("*", root, Compound("^", k, contents(k)))
+          case otherwise => {
+            if (isFirst) {
+              root = contents(k) match {
+                case NumberValue(IntBig(1),IntBig(1)) => k
+                case otherwise => Compound("^", k, contents(k))
+              }
+              isFirst = false
+            } else {
+              root = contents(k) match {
+                case NumberValue(IntBig(1),IntBig(1)) =>
+                  Compound("*", root, k)
+                case otherwise =>
+                  Compound("*", root, Compound("^", k, contents(k)))
+              }
+            }
           }
         }
       }
-      println("Converted "+this+" to:")
+      /*println("Converted "+this+" to:")
       debug_print(root)
-      println
+      println*/
       return root
     }
     override def toString(): String = {
@@ -223,9 +239,9 @@ object Simplifier {
   }
 
   def combineUnbounds(v: Value): Value = {
-    println("combineUnbounds called on:")
+    /*println("combineUnbounds called on:")
     debug_print(v)
-    println
+    println*/
     val (_,m) = combineUnboundsRecursive(v)
     //m.toCompound()
 
@@ -252,10 +268,10 @@ object Simplifier {
   }
 
   def combineUnboundsRecursive(v: Value): (Value, Map[UnboundSet,Value]) = v match {
-    case nv:NumberValue => (v,Map())
+    case nv:NumberValue => (v,Map(new UnboundSet(Map(Unbound('numbervaluedeadbeefasf) -> NumberValue(1,1))) -> nv))
     case Compound("*",nv:NumberValue,rhs) => {
       val (lhs_v,lhs_m) = combineUnboundsRecursive(rhs)
-      println("Number times a: "+lhs_m)
+      //println("Number times a: "+lhs_m)
       if (lhs_m.size > 0)
         (v,Map(lhs_m.keysIterator.next() -> Compound("*", nv, lhs_m.valuesIterator.next())))
       else
@@ -290,30 +306,30 @@ object Simplifier {
     case Compound("+",lhs,rhs) => {
       val (lhs_v,lhs_m) = combineUnboundsRecursive(lhs)
       val (rhs_v,rhs_m) = combineUnboundsRecursive(rhs)
-      println("Adding "+lhs_m+" to "+rhs_m)
+      //println("Adding "+lhs_m+" to "+rhs_m)
 
       // Merge the two: Essentially concatenation
       var res_m:Map[UnboundSet,Value] = Map()
       lhs_m.keys.foreach{ k =>
-        println(k)
+        //println(k)
         if (rhs_m contains k) {
           // Both lhs and rhs have the given key, add them
-          println("both")
+          //println("both")
           //println("both: "+lhs_m(k)+" and "+rhs_m(k)+" go to "+(lhs_m(k)+rhs_m(k)))
           res_m += (k -> (lhs_m(k) + rhs_m(k)))
         } else {
-          println("only lhs")
+          //println("only lhs")
           // Only lhs has the key
           res_m += (k -> lhs_m(k))
         }
       }
       rhs_m.keys.foreach{ k =>
         if (!(lhs_m contains k)) {
-          println(k+" only in rhs")
+          //println(k+" only in rhs")
           res_m += (k -> rhs_m(k))
         }
       }
-      println(res_m)
+      //println(res_m)
       (v,res_m)
     }
     case Compound("^",lhs,nv:NumberValue) => {
@@ -322,7 +338,7 @@ object Simplifier {
       lhs_m.keys.foreach{ k =>
         res_m += (k -> (lhs_m(k) * nv))
       }
-      println("Exponential to a NV gives: "+res_m+" from: "+lhs_m)
+      //println("Exponential to a NV gives: "+res_m+" from: "+lhs_m)
       (v,res_m)
     }
     case Compound(op,_,_) => {
