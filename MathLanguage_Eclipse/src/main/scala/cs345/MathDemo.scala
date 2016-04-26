@@ -168,6 +168,7 @@ object MathDemo {
     //    So, please take a moment to look at the demo add examples of what you implemented 
     //       in the demo, and report it in the documentation. 
     //    Thanks :)   
+
     
     demo    //comment if you don't want to see, but leave it uncommented in committed code
     //pretty examples go in the demo

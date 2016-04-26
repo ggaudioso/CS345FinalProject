@@ -147,6 +147,10 @@ object MathCode {
         println(variableName)
         throw new Exception("Redefinition is not allowed!")
       }
+      else if (isknownfunction(Compound("^",variableName,'xxx))) {
+        println(variableName)
+        throw new Exception("variable name clashes with predefined function, not allowed")
+      }
       variableMap += (variableName -> simplify(value, variableMap))
     }
   }
@@ -256,6 +260,8 @@ object MathCode {
       def :=(expression:Value) {
         if((variableMap contains functionName) || (functionMap contains functionName))
           throw new Exception("Redefinition is not allowed!")
+        else if (isknownfunction(Compound("^",functionName,'xxxx)))
+          throw new Exception("Function name clashes with predefined function, not allowed")
         ensureValueOnlyContainsUnboundWithSymbolicNames(expression, parameters)
         functionMap += (functionName -> new FunctionImplementation(parameters, expression))
       }
