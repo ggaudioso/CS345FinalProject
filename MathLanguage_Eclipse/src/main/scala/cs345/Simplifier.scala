@@ -63,20 +63,20 @@ object Simplifier {
       case Compound("+", NumberValue(IntBig(0),_), rhs) => rhs
       case Compound("/", NumberValue(IntBig(0),_), rhs) => NumberValue(0,1)
       case Compound(outer_op, Compound(inner_op, lhs1, rhs1), rhs) => {
-        val simp_lhs1 = simplify(lhs1, binding)
-        val simp_rhs1 = simplify(rhs1, binding)
-        val simp_rhs = simplify(rhs, binding)
+        val simp_lhs1 = simplifier(lhs1, binding)
+        val simp_rhs1 = simplifier(rhs1, binding)
+        val simp_rhs = simplifier(rhs, binding)
         /*println("Simplifying "+outer_op+","+inner_op)
         debug_print(v)*/
 
         (outer_op, inner_op) match {
           case ("*", "+") | ("*", "-") => {
-            val new_lhs = simplify(Compound("*", simp_lhs1, simp_rhs), binding)
-            val new_rhs = simplify(Compound("*", simp_rhs1, simp_rhs), binding)
+            val new_lhs = simplifier(Compound("*", simp_lhs1, simp_rhs), binding)
+            val new_rhs = simplifier(Compound("*", simp_rhs1, simp_rhs), binding)
             /*println("new lhs, rhs:")
             debug_print(new_lhs)
             debug_print(new_rhs)*/
-            simplify(Compound(inner_op, new_lhs, new_rhs), binding)
+            simplifier(Compound(inner_op, new_lhs, new_rhs), binding)
           }
 
           case otherwise => rhs match {
@@ -99,15 +99,15 @@ object Simplifier {
   }
   
   
-  def simplify_any_compound(outer_op:String, lhs:Value, c:Compound, recurse:Boolean, binding:Map[Symbol, Value]):Value = {
+  private def simplify_any_compound(outer_op:String, lhs:Value, c:Compound, recurse:Boolean, binding:Map[Symbol, Value]):Value = {
     val x = simplify_any_compound2(outer_op, lhs, c, binding)
     if (recurse && !x._1)
-      simplify(x._2, binding)
+      simplifier(x._2, binding)
     else
       x._2
   }
 
-  def simplify_any_compound2(outer_op:String, lhs:Value, c:Compound, binding:Map[Symbol, Value]):(Boolean,Value) = c match {
+  private def simplify_any_compound2(outer_op:String, lhs:Value, c:Compound, binding:Map[Symbol, Value]):(Boolean,Value) = c match {
     case Compound(inner_op, lhs1, rhs1) => {
       /*println("Simplifying:")
       debug_print(Compound(outer_op, lhs, c))*/
@@ -119,7 +119,7 @@ object Simplifier {
 
         // a - (b - c) => (a - b) + c
         case ("-", "-") =>
-          (false,Compound("+", simplify(Compound("-", lhs, lhs1), binding), simplify(rhs1, binding)))
+          (false,Compound("+", simplifier(Compound("-", lhs, lhs1), binding), simplifier(rhs1, binding)))
 
         // Everything else
         case otherwise => (true,Compound(outer_op, lhs, c))
@@ -127,7 +127,7 @@ object Simplifier {
     }
   }
   
-  def simplifyCompound_wrapper(v:Value, binding:Map[Symbol, Value]):Value = v match {
+  private def simplifyCompound_wrapper(v:Value, binding:Map[Symbol, Value]):Value = v match {
     case c:Compound => simplifyCompound(c, binding)
     case otherwise => v
   }
@@ -181,7 +181,7 @@ object Simplifier {
   def simplifyCompound(compound: Compound, binding: Map[Symbol, Value]): Value = {
     
     // Replace all variables by their bindings.
-    var tempValue: Value = getCompoundGivenBinding(compound, variableMap) 
+    var tempValue: Value = getCompoundGivenBinding(compound, binding) 
     
     // If the result is not a Compound, then return it. It could be a
     // NumberValue or an Unbound, for example.
@@ -456,7 +456,7 @@ object Simplifier {
    * groups. When a group is simplified, it is only possible to create a new
    * node of this form.
    */
-  def simplifyGroups(compoundCluster: CompoundCluster): Value = {
+  private def simplifyGroups(compoundCluster: CompoundCluster): Value = {
     
     // The new children and new operator lists of this CompoundCluster.
     // At the end of this method, a new CompoundCluster is returned using
@@ -788,7 +788,7 @@ object Simplifier {
   /**
    * Converts a CompoundCluster to a Compound.
    */
-  def compoundClusterToCompound(cc: CompoundCluster): Compound = {
+  private def compoundClusterToCompound(cc: CompoundCluster): Compound = {
     
     // If this is a leaf CompundCluster, then all of the children are
     // NumberValues or Unbounds. In this case, convert to a Compound and return
@@ -828,7 +828,7 @@ object Simplifier {
    * Given a group of NumberValues and Unbounds, returns the proper
    * left-associative Compound for this group.
    */
-  def groupToCompound(values: List[Value], operators: List[String]): Compound = {
+  private def groupToCompound(values: List[Value], operators: List[String]): Compound = {
     
     //println("List of operators: " + operators) 
     //println("List of values: " + values) 
@@ -975,7 +975,7 @@ object Simplifier {
   /**
    * Flatten the given Compound to a fully-parenthesized String.
    */
-  def flattenCompoundToString(compound: Compound): String = {
+  private def flattenCompoundToString(compound: Compound): String = {
     
     // Base case: neither the LHS or RHS are compounds. Thus, this
     // is a leaf compound.
@@ -1018,7 +1018,7 @@ object Simplifier {
    * Return a list of operators in this Compound, in the order which
    * they would be laid out in the expression this Compound represents.
    */
-  def getOperatorsList(compound: Compound): List[String] = {
+  private def getOperatorsList(compound: Compound): List[String] = {
     
     // If this compound has no sub-compounds, then add it's operator
     // to our list and we're done.
@@ -1049,7 +1049,7 @@ object Simplifier {
   /**
    * Given a Compound, simplify all sub-Compounds which are two NumberValues.
    */
-  def simplifyCompoundNumberValuePairs(compound: Compound): Value = {
+  private def simplifyCompoundNumberValuePairs(compound: Compound): Value = {
     
     //println("GIVEN COMPOUND: " + compound) 
     
@@ -1110,7 +1110,7 @@ object Simplifier {
   /**
    * Returns true iff the given Value is of type CompoundCluster.
    */
-  def isCompoundClusterValue(value: Value): Boolean = value match {
+  private def isCompoundClusterValue(value: Value): Boolean = value match {
     case c: CompoundCluster => true
     case otherwise => false
   }
@@ -1144,10 +1144,58 @@ object Simplifier {
     return Compound(op, newLhs, newRhs) 
   }
 
+  //look up a variable given the binding
+  private def variableLookupFromBinding(sym:Symbol, binding:Map[Symbol, Value]):Value = {
+    binding.get(sym) match {
+      case Some(value) => value
+      case None => Unbound(sym)
+    }
+  }
+  
+  /**
+   * Returns true iff the given Value is of type NumberValue.
+   */
+  private def isNumberValue(value: Value): Boolean = value match {
+    case NumberValue(n,d) => true
+    case otherwise => false
+  }
+  
+  /**
+   * Gets numerator out of fraction.
+   */
+  private def getNum(value: Value): BigInt = value match {
+    case NumberValue(n,d) => n
+    case otherwise => 0 //your risk to call this on st that is not numbervalue
+  }
+  
+  /**
+   * Gets denominator out of fraction.
+   */
+  private def getDen(value: Value): BigInt = value match {
+    case NumberValue(n,d) => d
+    case otherwise => 0 //your risk to call this on st that is not numbervalue
+  }
+  
+  
+  /**
+   * Returns true iff the given Value is of type Compound.
+   */
+  private def isCompound(value: Value): Boolean = value match {
+    case c: Compound => true
+    case otherwise => false
+  }
+  
+  /**
+   * Returns true iff the given Value is of type Unbound.
+   */
+  private def isUnbound(value: Value): Boolean = value match {
+    case u: Unbound => true
+    case otherwise => false
+  }
 
  
   //Returns the greatest common divisor of a and b
-  def gcd(a:BigInt, b:BigInt):BigInt = {
+  private def gcd(a:BigInt, b:BigInt):BigInt = {
     if (a==0 || b==0) return 1
     if (a < 0) { return gcd(-a,b) }
     if (b < 0) { return gcd(a,-b) }

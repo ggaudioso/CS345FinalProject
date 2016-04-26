@@ -905,17 +905,17 @@ object MathCode {
  //*****************************************************************  
   
   //bindings of variables stored here:
-  var variableMap:Map[Symbol,Value] = Map()
-  var functionMap:Map[Symbol, FunctionImplementation] = Map()
-  var piecewiseFunctionMap:Map[Symbol, Seq[(Seq[Comparison], FunctionImplementation)]] = Map()
+  private var variableMap:Map[Symbol,Value] = Map()
+  private var functionMap:Map[Symbol, FunctionImplementation] = Map()
+  private var piecewiseFunctionMap:Map[Symbol, Seq[(Seq[Comparison], FunctionImplementation)]] = Map()
   
   //known values such as pi, e .. can add more
   //if we increase precision, increase precision of these as well.. but not too much or operations with lots of these wil overflow and mess up
-  var knownVariables:Map[Symbol,Double] = Map(('e,2.7182818), ('pi,3.14159265))
-  var knownVariablesValue:Map[Symbol,Value] = Map(('e,2.7182818), ('pi,3.14159265)) //so Scala is happy everywhere
+  private var knownVariables:Map[Symbol,Double] = Map(('e,2.7182818), ('pi,3.14159265))
+  private var knownVariablesValue:Map[Symbol,Value] = Map(('e,2.7182818), ('pi,3.14159265)) //so Scala is happy everywhere
   
   //look up a variable given the binding
-  def variableLookupFromBinding(sym:Symbol, binding:Map[Symbol, Value]):Value = {
+  private def variableLookupFromBinding(sym:Symbol, binding:Map[Symbol, Value]):Value = {
     binding.get(sym) match {
       case Some(value) => value
       case None => Unbound(sym)
@@ -926,7 +926,7 @@ object MathCode {
   //* HELPER METHODS.
   //***************************************************************************
   
-  def debug_print(v:Value, depth:Int = 0):Unit = v match {
+  private def debug_print(v:Value, depth:Int = 0):Unit = v match {
     case NumberValue(n,d) => print("NV("+n+","+d+")")
     case Compound(op, lhs, rhs) => {
       print("("+op+" ")
@@ -948,7 +948,7 @@ object MathCode {
     def unapply(b: BigInt) = Option(b.toInt)
   }
 
-  def simplify(v:Value, binding:Map[Symbol, Value] = variableMap):Value = 
+  private def simplify(v:Value, binding:Map[Symbol, Value] = variableMap):Value = 
     Simplifier.simplifier(v:Value, binding:Map[Symbol, Value])
   
     
@@ -957,7 +957,7 @@ object MathCode {
   //def lcm(a:Int, b:Int):Int = a*b / gcd(a,b) 
   
   // For use in function bodies/Comparisons, to make sure there isn't anything we don't expect
-  def ensureValueOnlyContainsUnboundWithSymbolicNames(value:Value, symbolicNames:Seq[Symbol]): Unit = {
+  private def ensureValueOnlyContainsUnboundWithSymbolicNames(value:Value, symbolicNames:Seq[Symbol]): Unit = {
     value match {
       case NumberValue(_,_) => return
       case Unbound(sym:Symbol) => {
@@ -971,7 +971,7 @@ object MathCode {
     }
   }
   
-  def getMappingFromParametersToArguments(parameters:Seq[Symbol], arguments:Seq[Value]) : Map[Symbol, Value] = {
+  private def getMappingFromParametersToArguments(parameters:Seq[Symbol], arguments:Seq[Value]) : Map[Symbol, Value] = {
     assert(arguments.length == parameters.length)
 
     var bindings:Map[Symbol, Value] = Map()
@@ -994,7 +994,7 @@ object MathCode {
   /**
    * Returns true iff the given compound is made purely of NumberValues.
    */
-  def allNumberValues(compound: Value): Boolean = compound match {
+  private def allNumberValues(compound: Value): Boolean = compound match {
     case NumberValue(_,_) => true
     case Unbound(_) => false
     case Compound(op,v1:Value,v2:Value) => allNumberValues(v1) && allNumberValues(v2)
@@ -1004,7 +1004,7 @@ object MathCode {
   /**
    * Returns true iff the given Value is of type NumberValue.
    */
-  def isNumberValue(value: Value): Boolean = value match {
+  private def isNumberValue(value: Value): Boolean = value match {
     case NumberValue(n,d) => true
     case otherwise => false
   }
@@ -1012,7 +1012,7 @@ object MathCode {
   /**
    * Gets numerator out of fraction.
    */
-  def getNum(value: Value): BigInt = value match {
+  private def getNum(value: Value): BigInt = value match {
     case NumberValue(n,d) => n
     case otherwise => 0 //your risk to call this on st that is not numbervalue
   }
@@ -1020,7 +1020,7 @@ object MathCode {
   /**
    * Gets denominator out of fraction.
    */
-  def getDen(value: Value): BigInt = value match {
+  private def getDen(value: Value): BigInt = value match {
     case NumberValue(n,d) => d
     case otherwise => 0 //your risk to call this on st that is not numbervalue
   }
@@ -1029,7 +1029,7 @@ object MathCode {
   /**
    * Returns true iff the given Value is of type Compound.
    */
-  def isCompound(value: Value): Boolean = value match {
+  private def isCompound(value: Value): Boolean = value match {
     case c: Compound => true
     case otherwise => false
   }
@@ -1051,12 +1051,12 @@ object MathCode {
   /**
    * Returns true iff the given Value is of type Unbound.
    */
-  def isUnbound(value: Value): Boolean = value match {
+  private def isUnbound(value: Value): Boolean = value match {
     case u: Unbound => true
     case otherwise => false
   }
   
-  def getSym(value: Value): Symbol = value match {
+  private def getSym(value: Value): Symbol = value match {
     case Unbound(sym) => sym
     case otherwise => throw new Exception("get sym called in something that is not a unbound")
   }
