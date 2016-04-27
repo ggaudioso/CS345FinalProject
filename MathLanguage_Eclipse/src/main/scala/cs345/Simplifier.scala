@@ -112,8 +112,8 @@ object Simplifier {
 
   private def simplify_any_compound2(outer_op:String, lhs:Value, c:Compound, binding:Map[Symbol, Value]):(Boolean,Value) = c match {
     case Compound(inner_op, lhs1, rhs1) => {
-      println("Simplifying:")
-      debug_print(Compound(outer_op, lhs, c))
+      //println("Simplifying:")
+      //debug_print(Compound(outer_op, lhs, c))
 
       (outer_op, inner_op) match {
         // Commutative operators
@@ -238,7 +238,19 @@ object Simplifier {
     }
   }
 
+  // This is a crazy hack that gets rid of division (or other unsimplifiably operators)
+  def containsUnsimplifiableOperation(v: Value): Boolean = v match {
+    case a:Unbound => false
+    case a:NumberValue => false
+    case Compound("/", lhs, rhs) => true
+    case Compound("^", lhs, rhs) => true
+    case Compound(op,lhs,rhs) => containsUnsimplifiableOperation(lhs) || containsUnsimplifiableOperation(rhs)
+  }
+
   def combineUnbounds(v: Value): Value = {
+    if (containsUnsimplifiableOperation(v)) {
+      return v
+    }
     /*println("combineUnbounds called on:")
     debug_print(v)
     println*/
@@ -289,7 +301,7 @@ object Simplifier {
       val (rhs_v,rhs_m) = combineUnboundsRecursive(rhs)
 
       // Each map should only have a single entry, or we're hosed
-      if (lhs_m.size != 1 || rhs_m.size != 1) {
+      /*if (lhs_m.size != 1 || rhs_m.size != 1) {
         debug_print(lhs_v)
         println
         println(lhs_m)
@@ -297,11 +309,20 @@ object Simplifier {
         println
         println(rhs_m)
         throw new Exception("lhs and rhs maps should only have 1 entry each! But probably this code can be implemented.")
+      }*/
+
+      // We need to go through every pair of keys and absorb them
+      var res:Map[UnboundSet,Value] = Map()
+      lhs_m.keys.foreach{ lhs_k =>
+        rhs_m.keys.foreach{ rhs_k =>
+          res += (lhs_k.absorb(rhs_k) -> Compound("*", lhs_m(lhs_k), rhs_m(rhs_k)))
+        }
       }
+      (v,res)
 
       // Combine the keys, add the values (remember: Each one only has 1).
-      val newkey = lhs_m.keysIterator.next().absorb(rhs_m.keysIterator.next())
-      (v,Map(newkey -> Compound("*", lhs_m.valuesIterator.next(), rhs_m.valuesIterator.next())))
+      //val newkey = lhs_m.keysIterator.next().absorb(rhs_m.keysIterator.next())
+      //(v,Map(newkey -> Compound("*", lhs_m.valuesIterator.next(), rhs_m.valuesIterator.next())))
     }
     case Compound("+",lhs,rhs) => {
       val (lhs_v,lhs_m) = combineUnboundsRecursive(lhs)

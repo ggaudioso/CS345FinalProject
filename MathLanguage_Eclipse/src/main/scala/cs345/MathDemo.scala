@@ -170,11 +170,11 @@ object MathDemo {
     //    Thanks :)   
 
     
-    //demo    //comment if you don't want to see, but leave it uncommented in committed code
+    demo    //comment if you don't want to see, but leave it uncommented in committed code
     //pretty examples go in the demo
     //your own testing goes here BUT is DELETED before commit :)
 
-    pprint('x+'a+2*'x)
+    //pprint('x+'a+2*'x)
     
     return //move examples in demo, see google doc :D
     
