@@ -819,6 +819,8 @@ object MathCode {
   //* PRINTING:
   //***************************************************************************
   
+  def setprecision(digits:Int):Unit = { numdigits=pow(10,digits).toInt }
+  
   //pretty print: parenthesis only when needed
   def pprint(value:Value):Unit = value match {
     case NumberValue(n,d) => {
@@ -864,7 +866,7 @@ object MathCode {
     }
   }
    
-  private val numdigits = 100000 //number of zeros here = number of decimal places in print
+  private var numdigits = 100000 //number of zeros here = number of decimal places in print
                                  //numdigits = 1 -> prints closest int
                                  //numdigits = 100000 -> prints 5 digits after .
   
