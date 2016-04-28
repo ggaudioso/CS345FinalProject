@@ -35,6 +35,9 @@
 //
 //  Printing:             pprint('a)          prints the value associated with a in its simplified form, or just a if such value does not exist
 //                        aprint('a)          prints an approximation of a (ie 3/4 = 0.75, 'pi = 3.1415, and so on)
+//                        setprecision(numdigits)
+//                                            sets the precision of aprint to numdigits after the dot
+//
 //  Derive:               derive(expression, variable)
 //                                            Returns the derivative of the expression with respect to the variable. Use as argument of pprint to print result
 //  Integrate:            integrate(expression, variable)
