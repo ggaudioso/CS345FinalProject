@@ -164,9 +164,7 @@ object MathDemo {
 
   def main(args: Array[String]):Unit = {  
     
-    pprint(solve('a*'x,'x,'x))
-    
-    //demo    
+    demo    
     
     return
     
