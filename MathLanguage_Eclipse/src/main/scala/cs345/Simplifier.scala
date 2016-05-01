@@ -109,6 +109,9 @@ object Simplifier {
      case NumberValue(n,d) => x
      case Compound("*",NumberValue(IntBig(1),IntBig(1)),rhs) => fix(rhs)
      case Compound("*",lhs,NumberValue(IntBig(1),IntBig(1))) => fix(lhs)
+     case Compound("*",NumberValue(IntBig(0),IntBig(1)),rhs) => 0
+     case Compound("*",lhs,NumberValue(IntBig(0),IntBig(1))) => 0
+     case Compound("+",lhs,Compound("*",rhs,NumberValue(IntBig(-1),IntBig(1)))) => Compound("-",fix(lhs),fix(rhs))
      case Compound(op,lhs,rhs) => Compound(op,fix(lhs),fix(rhs))
    }
   }

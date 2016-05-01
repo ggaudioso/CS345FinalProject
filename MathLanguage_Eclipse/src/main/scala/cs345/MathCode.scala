@@ -278,13 +278,13 @@ object MathCode {
       var simplifiedLHS : Value = lhs match {
         case nv:NumberValue => nv
         case umbound:Unbound => variableLookupFromBinding(umbound.sym, bindings)
-        case compound:Compound => simplify(Simplifier.getCompoundGivenBinding(compound, bindings), bindings)
+        case compound:Compound => simplify(gcgb(compound, bindings), bindings)
       }
       
       var simplifiedRHS : Value = rhs match {
         case nv:NumberValue => nv
         case umbound:Unbound => variableLookupFromBinding(umbound.sym, bindings)
-        case compound:Compound => simplify(Simplifier.getCompoundGivenBinding(compound, bindings), bindings)
+        case compound:Compound => simplify(gcgb(compound, bindings), bindings)
       }
       
       var lhsAsNumberValue : NumberValue = simplifiedLHS match {
@@ -404,7 +404,7 @@ object MathCode {
       return expression match {
         case nv:NumberValue => nv
         case umbound:Unbound => variableLookupFromBinding(umbound.sym, bindings)
-        case compound:Compound => simplify(Simplifier.getCompoundGivenBinding(compound, bindings), bindings)
+        case compound:Compound => simplify(gcgb(compound, bindings), bindings)
       }
     }
   }
@@ -530,19 +530,19 @@ object MathCode {
       var flaga, flagb = false
       var defa,defb = Compound("+",0,0)
       if (isUnbound(b) && getSym(b).equals('Infinity)) {
-        defb = Simplifier.getCompoundGivenBinding(indefinite,Map(wrt->'binf))
+        defb = gcgb(indefinite,Map(wrt->'binf))
         flagb = true
       }
       else 
-       defb = Simplifier.getCompoundGivenBinding(indefinite,Map(wrt->b))
+       defb = gcgb(indefinite,Map(wrt->b))
       if (isCompound(a) && getOp(a).equals("-") 
           && isNumberValue(getLhs(a)) && getNum(getLhs(a))==0 
           && isUnbound(getRhs(a)) && getSym(getRhs(a)).equals('Infinity) ) { 
-        defa = Simplifier.getCompoundGivenBinding(indefinite,Map(wrt->'ainf))
+        defa = gcgb(indefinite,Map(wrt->'ainf))
         flaga = true
       }
       else 
-        defa = Simplifier.getCompoundGivenBinding(indefinite,Map(wrt->a))
+        defa = gcgb(indefinite,Map(wrt->a))
       if (!flaga && !flagb) 
         return Compound("-",defb,defa)
       else if (flagb && !flaga) {
@@ -590,7 +590,7 @@ object MathCode {
     }
     case Compound(o,l,r) => {
       if (isknownfunction(Compound(o,l,r))) 
-        approxknownfunction(Simplifier.getCompoundGivenBinding(Compound(o,l,r),Map(wrt->x)))
+        approxknownfunction(gcgb(Compound(o,l,r),Map(wrt->x)))
       else o match {
         case "+" => return approx(l,wrt,x) + approx(r,wrt,x)
         case "-" => return approx(l,wrt,x) - approx(r,wrt,x)
@@ -604,14 +604,26 @@ object MathCode {
   
   
   //solves lhs=rhs to return wrt = expression (pulls out wrt)
-  //assumes wrt appears at degree 1 with only numeric multipliers, and does not deal with known functions
   //returns value of wrt
   def solve(lhs:Value,rhs:Value,wrt:Symbol):Value = {
-    var lhs_rhs = simplify(lhs-rhs)
-    if (!ishereOnce(lhs_rhs,wrt)) throw new Exception("Only numeric muplipliers for unknown, and first degree equations can be solved here")
+    var lhs_rhs = group(simplify(lhs-rhs),wrt)
+    if (!ishere(lhs_rhs,wrt)) return 'Undefined
+    if (!ishereOnce(lhs_rhs,wrt)) throw new Exception("cannot solve equation, try moving things around")
     else  //can solve
         return simplify(solver(lhs_rhs,0,wrt))
   }
+  
+  //solves system of equations lhs1=rhs1 && lhs2=rhs2 with respect of the unknowns wrt1 and wrt2
+  //returns list of values of wrt1 and wrt2. 
+  def solve(lhs1:Value,rhs1:Value,lhs2:Value,rhs2:Value,wrt1:Symbol,wrt2:Symbol):(Value,Value) = {
+    var wrt1solved1 = solve(lhs1,rhs1,wrt1)
+    var wrt1solved2 = solve(lhs2,rhs2,wrt1)
+    var wrt2solution = solve(wrt1solved1,wrt1solved2,wrt2)
+    var wrt1solution = simplify(gcgb(Compound("+",wrt1solved1,0),Map(wrt2->wrt2solution)))
+    return (wrt1solution,wrt2solution)
+  }
+  
+  //helpers of solve methods:
   private def ishereOnce(where:Value, what:Symbol): Boolean = where match {
     case NumberValue(n,d) => false
     case Unbound(sym) => what.equals(sym)
@@ -621,18 +633,12 @@ object MathCode {
       return (left||right) && !(left&&right)  //exclusive or
     }
   }
-  
-  //solves system of equations lhs1=rhs1 && lhs2=rhs2 with respect of the unknowns wrt1 and wrt2
-  //same assumptions of solve apply here, plus both variables must be in each equation
-  //returns list of values of wrt1 and wrt2. 
-  def solve(lhs1:Value,rhs1:Value,lhs2:Value,rhs2:Value,wrt1:Symbol,wrt2:Symbol):(Value,Value) = {
-    var wrt1solved1 = solve(lhs1,rhs1,wrt1)
-    var wrt1solved2 = solve(lhs2,rhs2,wrt1)
-    var wrt2solution = solve(wrt1solved1,wrt1solved2,wrt2)
-    var wrt1solution = simplify(Simplifier.getCompoundGivenBinding(Compound("+",wrt1solved1,0),Map(wrt2->wrt2solution)))
-    return (wrt1solution,wrt2solution)
-  }
-  
+  private def group(cc:Value,wrt:Symbol):Compound = {
+    var c = Compound("+",cc,0)
+    var coeff = simplify(gcgb(c,Map(wrt->1))-gcgb(c,Map(wrt->0)))
+    var rest = simplify(gcgb(c,Map(wrt->0)))
+    Compound("+",Compound("*",coeff,wrt),rest)
+  } 
   private var opposites = Map("+"->"-","-"->"+","*"->"/","/"->"*") 
   private def solver(lhs:Value,rhs:Value,wrt:Symbol):Value = {
     //here I know that my variable is in the lhs, for how this helper is called
@@ -672,6 +678,7 @@ object MathCode {
     return solved   
   }
   
+  
   //takes the limit of "expr" as "wrt" goes to "where"
   def limit(expr:Value,wrt:Symbol,where:Value): Value =  { 
     simplify(expr) match {
@@ -681,18 +688,18 @@ object MathCode {
         case Compound(oo,ll,rr) => {
           if (oo.equals("-") && isNumberValue(ll) && getNum(ll)==0 && isUnbound(rr) && getSym(rr).equals('Infinity)) {
             var negwrt = Compound("-",0,wrt)
-            var newcompound = Simplifier.getCompoundGivenBinding(Compound(o,l,r), Map(wrt->negwrt))
+            var newcompound = gcgb(Compound(o,l,r), Map(wrt->negwrt))
             return limit(newcompound,wrt,'Infinity)
           }
           throw new Exception("limit cannot go to expression")
         }
-        case NumberValue(n,d) => Simplifier.getCompoundGivenBinding(Compound(o,l,r), Map(wrt->NumberValue(n,d)))
+        case NumberValue(n,d) => gcgb(Compound(o,l,r), Map(wrt->NumberValue(n,d)))
         case Unbound(sym) => { 
           if (sym=='Infinity) {
             if (!ishere(expr,wrt)) expr 
             else gotoinf(Compound(o,l,r),wrt)
           }
-          else Simplifier.getCompoundGivenBinding(Compound(o,l,r), Map(wrt->sym))
+          else gcgb(Compound(o,l,r), Map(wrt->sym))
         }
       }
     }
@@ -704,12 +711,12 @@ object MathCode {
     //If the expression keeps growing as wrt increases, then the limit is infinity
     var epsilon = 0.00001
     var startx = 100
-    var starty = simplify(Simplifier.getCompoundGivenBinding(expr,Map(wrt->startx)))
+    var starty = simplify(gcgb(expr,Map(wrt->startx)))
     var difference:Value = 0
     var difference1:Value = 0
     for (i <- 1 to 100) {
       var x =  startx + 1000*i
-      var y = simplify(Simplifier.getCompoundGivenBinding(expr,Map(wrt->x)))
+      var y = simplify(gcgb(expr,Map(wrt->x)))
       difference = simplify(Compound("-",y,starty))
       var diff = 0.0
       //if (!isNumberValue(difference)) 
@@ -780,9 +787,9 @@ object MathCode {
         var sumorprod:Value = if (issum) Compound("+",0,0) else Compound("+",1,0)
         for (i <- aint to bint) {
           if (issum)
-            sumorprod += Simplifier.getCompoundGivenBinding(compexpr, Map(wrt->i))
+            sumorprod += gcgb(compexpr, Map(wrt->i))
           else 
-            sumorprod *= Simplifier.getCompoundGivenBinding(compexpr, Map(wrt->i))
+            sumorprod *= gcgb(compexpr, Map(wrt->i))
         }
         return simplify(sumorprod)
       }
@@ -796,13 +803,13 @@ object MathCode {
   private def sumtoinf(expr:Value,wrt:Symbol,aa:Int,issum:Boolean):Value = {
     var epsilon = 0.000001
     var compexpr = Compound("+",expr,0)
-    var a:Value = Simplifier.getCompoundGivenBinding(compexpr, Map(wrt->aa))
+    var a:Value = gcgb(compexpr, Map(wrt->aa))
     var sumorprod:Value = a
     var b:Value = a
     var start = aa+1
     for (i <- start to 1000) {
       a=b
-      b = Simplifier.getCompoundGivenBinding(compexpr, Map(wrt->i))
+      b = gcgb(compexpr, Map(wrt->i))
       var diff = abs(approx(simplify(b-a),'rrrrrrrrr,0))
       if (diff<epsilon) return sumorprod
       if (issum)
@@ -861,7 +868,7 @@ object MathCode {
       else println((sym.toString).substring(1))
     }
     case Compound(o,r,l) => {
-      var bounded = Simplifier.getCompoundGivenBinding(Compound(o,r,l), variableMap)
+      var bounded = gcgb(Compound(o,r,l), variableMap)
       pprinthelp(simplify(bounded,variableMap),false)
       println
     }
@@ -884,8 +891,8 @@ object MathCode {
       else println((sym.toString).substring(1))
     }
     case Compound(o,r,l) => {
-      var bounded1 = Simplifier.getCompoundGivenBinding(Compound(o,r,l),variableMap)
-      var bounded2 = Simplifier.getCompoundGivenBinding(bounded1,knownVariablesValue)
+      var bounded1 = gcgb(Compound(o,r,l),variableMap)
+      var bounded2 = gcgb(bounded1,knownVariablesValue)
       pprinthelp(simplify(bounded2,variableMap),true) 
       println  
     }
@@ -1066,7 +1073,8 @@ object MathCode {
 
   private def simplify(v:Value, binding:Map[Symbol, Value] = variableMap):Value = 
     Simplifier.simplifier(v:Value, binding:Map[Symbol, Value])
-  
+  private def gcgb(c:Compound,binding:Map[Symbol, Value]):Compound = 
+    Simplifier.getCompoundGivenBinding(c,binding)
     
 
   // Returns the LCM of a and b
@@ -1098,7 +1106,7 @@ object MathCode {
       var simplifiedArgument : Value = unsimplifiedArgument match {
         case nv:NumberValue => nv
         case Unbound(symbol) => variableLookupFromBinding(symbol, variableMap)
-        case compound:Compound => simplify(Simplifier.getCompoundGivenBinding(compound, variableMap), variableMap)
+        case compound:Compound => simplify(gcgb(compound, variableMap), variableMap)
       }
 
       bindings += (parameter -> simplifiedArgument)
