@@ -1464,8 +1464,9 @@ object Simplifier {
   //Returns the greatest common divisor of a and b
   private def gcd(a:BigInt, b:BigInt):BigInt = {
     if (a==0 || b==0) return 1
+    if (a<0 && b<0) return -gcd(-a,-b)
     if (a < 0) { return gcd(-a,b) }
-    if (b < 0) { return gcd(a,-b) }
+    if (b < 0) { return -gcd(a,-b) }
     if (a<b) { return gcd(b,a) } else {
       var t1 = a
       var t2 = b

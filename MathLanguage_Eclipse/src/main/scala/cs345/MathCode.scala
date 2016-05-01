@@ -38,18 +38,21 @@
 //                        setprecision(numdigits)
 //                                            sets the precision of aprint to numdigits after the dot
 //
+//  Solve one equation:   solve(lhs,rhs,unknown)
+//                                            From lhs=rhs returns unknown=expression: solves equation lhs=rhs for variable unknown. Use as argument of pprint or aprint to print result
+//  Solve of system of two equations in two unknowns:
+//                        solve(lhs1,rhs1,lhs2,rhs2,wrt1,wrt2)
+//                                            From { lhs1=rhs1 , lhs2=rhs2 } returns { wrt1=expr1 , wrt2=expr2 }. Use as argument of pprint to print result
+//
 //  Derive:               derive(expression, variable)
 //                                            Returns the derivative of the expression with respect to the variable. Use as argument of pprint to print result
 //  Integrate:            integrate(expression, variable)
 //                                            Returns the indefinite integral of the expression with respect to the variable. Use as argument of pprint to print result
 //                        integrate(expression, variable, a, b)
 //                                            Returns the definite integral from a t b of the expression with respect to the variable. Use as argument of pprint or a print to print result
-//  Solve one equation:   solve(lhs,rhs,unknown)
-//                                            From lhs=rhs returns unknown=expression: solves equation lhs=rhs for variable unknown. Use as argument of pprint or aprint to print result
-//  Solve of system of two equations in two unknowns:
-//                        [COMING SOON]
 //  Limits:               limit(expr,variable,value)
 //                                            Returns the limit of the expression as the variable approaches value. Use as argument of pprint or aprint to print result
+//
 //  Summations:           summation(expr,variable,from,to)
 //                                            Returns summation of the expression when variable goes from "from" to "to". Use as argument of pprint or aprint to print result
 //  Products:             product(expr,variable,from,to)
@@ -57,7 +60,7 @@
 //  Factorial:            factorial(value)    Returns the factorial of the value. Use as argument of pprint or aprint to print result
 //
 // 
-//  See full documentation (WHERE?) for a full list of features and more detailed explanations
+//  See full documentation PDF for a full list of features and more detailed explanations
 //
 //
 //  ***********************************************************************************************************************************
@@ -601,15 +604,13 @@ object MathCode {
   
   
   //solves lhs=rhs to return wrt = expression (pulls out wrt)
-  //assumes wrt appears once total and be at degree 1, and does not deal with known functions
+  //assumes wrt appears at degree 1 with only numeric multipliers, and does not deal with known functions
+  //returns value of wrt
   def solve(lhs:Value,rhs:Value,wrt:Symbol):Value = {
-    if (isUnbound(lhs) && getSym(lhs).equals(wrt)) return rhs
-    if (isUnbound(rhs) && getSym(rhs).equals(wrt)) return lhs
-    if (ishereOnce(lhs,wrt) == ishereOnce(rhs,wrt)) throw new Exception("Variable must appear exactly once")
-    else { //can solve
-       if (ishereOnce(lhs,wrt)) return solver(lhs,rhs,wrt)
-       else return simplify(solver(rhs,lhs,wrt))
-    }
+    var lhs_rhs = simplify(lhs-rhs)
+    if (!ishereOnce(lhs_rhs,wrt)) throw new Exception("Only numeric muplipliers for unknown, and first degree equations can be solved here")
+    else  //can solve
+        return simplify(solver(lhs_rhs,0,wrt))
   }
   private def ishereOnce(where:Value, what:Symbol): Boolean = where match {
     case NumberValue(n,d) => false
@@ -620,6 +621,18 @@ object MathCode {
       return (left||right) && !(left&&right)  //exclusive or
     }
   }
+  
+  //solves system of equations lhs1=rhs1 && lhs2=rhs2 with respect of the unknowns wrt1 and wrt2
+  //same assumptions of solve apply here, plus both variables must be in each equation
+  //returns list of values of wrt1 and wrt2. 
+  def solve(lhs1:Value,rhs1:Value,lhs2:Value,rhs2:Value,wrt1:Symbol,wrt2:Symbol):(Value,Value) = {
+    var wrt1solved1 = solve(lhs1,rhs1,wrt1)
+    var wrt1solved2 = solve(lhs2,rhs2,wrt1)
+    var wrt2solution = solve(wrt1solved1,wrt1solved2,wrt2)
+    var wrt1solution = simplify(Simplifier.getCompoundGivenBinding(Compound("+",wrt1solved1,0),Map(wrt2->wrt2solution)))
+    return (wrt1solution,wrt2solution)
+  }
+  
   private var opposites = Map("+"->"-","-"->"+","*"->"/","/"->"*") 
   private def solver(lhs:Value,rhs:Value,wrt:Symbol):Value = {
     //here I know that my variable is in the lhs, for how this helper is called
@@ -824,6 +837,15 @@ object MathCode {
   
   def setprecision(digits:Int):Unit = { numdigits=pow(10,digits).toInt }
   
+  //extended pprint for tuples
+  def pprint(x:(Value,Value)):Unit = {
+   print("(")
+   pprinthelp(x._1,false)
+   print(",")
+   pprinthelp(x._2,false)
+   println(")")
+  }
+  
   //pretty print: parenthesis only when needed
   def pprint(value:Value):Unit = value match {
     case NumberValue(n,d) => {
@@ -911,9 +933,9 @@ object MathCode {
         if (approximate && isNumberValue(rhs)) 
           print((rint(approxknownfunction(Compound(op,lhs,rhs))*numdigits))/numdigits)
         else {
-          pprinthelp(lhs, approximate)
+          pprinthelp(simplify(lhs), approximate)
           print("(")
-          pprinthelp(rhs,approximate)
+          pprinthelp(simplify(rhs),approximate)
           print(")")
         }
         return

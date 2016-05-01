@@ -71,9 +71,10 @@ object MathDemo {
     println
 
     println("****************************************");
-    println("* Examples of solving a simple equation")
+    println("* Examples of solving equations")
     println("****************************************");
     pprint(solve(5-2*'x,'a/'b,'x))
+    pprint(solve('x+'y,3,'x-'y,5,'x,'y))
     println
     
     println("****************************************");
@@ -168,7 +169,6 @@ object MathDemo {
     //    So, please take a moment to look at the demo add examples of what you implemented 
     //       in the demo, and report it in the documentation. 
     //    Thanks :)   
-
     
     demo    //comment if you don't want to see, but leave it uncommented in committed code
     //pretty examples go in the demo
