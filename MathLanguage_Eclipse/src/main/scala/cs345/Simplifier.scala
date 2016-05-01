@@ -31,7 +31,7 @@ object Simplifier {
     /*println("Simplifying this:")
     debug_print(v)
     println*/
-    val v2 = simplifyCompound_wrapper(v, binding)
+    val v2 = simplifyCompound_wrapper(v, binding) 
     //debug_print(v2)
     //println
     val v3 = v2 match {
@@ -98,7 +98,19 @@ object Simplifier {
         v2
       }
     }
-    simplifyCompound_wrapper(combineUnbounds(v3), binding)
+    
+    fix(simplifyCompound_wrapper(combineUnbounds(v3), binding))
+    //v3
+  }
+  
+  private def fix(x:Value):Value = {
+   x match {
+     case Unbound(s) => x
+     case NumberValue(n,d) => x
+     case Compound("*",NumberValue(IntBig(1),IntBig(1)),rhs) => fix(rhs)
+     case Compound("*",lhs,NumberValue(IntBig(1),IntBig(1))) => fix(lhs)
+     case Compound(op,lhs,rhs) => Compound(op,fix(lhs),fix(rhs))
+   }
   }
   
   
@@ -489,8 +501,9 @@ object Simplifier {
     // and return it.
     finalResult = compoundClusterToCompound(finalResult.asInstanceOf[CompoundCluster]) 
     
-    return finalResult 
+    return finalResult
   }
+  
   
   
   /**

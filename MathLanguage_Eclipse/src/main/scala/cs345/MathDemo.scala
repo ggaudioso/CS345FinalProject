@@ -164,17 +164,9 @@ object MathDemo {
 
   def main(args: Array[String]):Unit = {  
     
-    //    IF YOU DO NOT PUT A PRETTY EXAMPLE OF YOUR STUFF IN THE DEMO ABOVE,
-    //       NO ONE WILL KNOW YOU DID THAT AND IT WILL NOT GO IN THE DOCUMENTATION.  
-    //    So, please take a moment to look at the demo add examples of what you implemented 
-    //       in the demo, and report it in the documentation. 
-    //    Thanks :)   
+    demo    
     
-    demo    //comment if you don't want to see, but leave it uncommented in committed code
-    //pretty examples go in the demo
-    //your own testing goes here BUT is DELETED before commit :)
-    
-    return //move examples in demo, see google doc :D
+    return
     
   }
 }

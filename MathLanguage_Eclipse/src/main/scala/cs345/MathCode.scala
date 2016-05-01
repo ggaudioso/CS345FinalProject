@@ -970,8 +970,7 @@ object MathCode {
     } 
   }
   
-  
-  //verose print: more parenthesis 
+  //verbose print: more parenthesis 
   def vprint(value:Value):Unit = value match {
     case numberValue:NumberValue => printNumberValue(numberValue); println
     case unbound:Unbound => printUnbound(unbound); println
