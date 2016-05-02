@@ -71,6 +71,16 @@ object MathDemo {
     println
 
     println("****************************************");
+    println("* Examples of recursion")
+    println("****************************************");
+    // Piecewise
+    'fib of ('x) when ('x === 0) := 0
+    'fib of ('x) when ('x === 1) := 1
+    'fib of ('x) when ('x > 1) := 'fib('x-1) + 'fib('x-2)
+    pprint('fib(7))
+    println
+    
+    println("****************************************");
     println("* Examples of solving equations")
     println("****************************************");
     pprint(solve(5-2*'x,'a/'b,'x))
