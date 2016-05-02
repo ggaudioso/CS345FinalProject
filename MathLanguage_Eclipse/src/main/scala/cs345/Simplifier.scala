@@ -421,7 +421,7 @@ object Simplifier {
   def simplifyCompoundtoCompoundCluster(compound: Compound, binding:Map[Symbol, Value]): Value = {
     
     // Replace all variables by their bindings.
-    var tempValue: Value = getCompoundGivenBinding(compound, binding) 
+    var tempValue: Value = gcgb(compound, binding) 
     
     // If the result is not a Compound, then return it. It could be a
     // NumberValue or an Unbound, for example.
@@ -463,7 +463,7 @@ object Simplifier {
   def simplifyCompound(compound: Compound, binding: Map[Symbol, Value]): Value = {
     
     // Replace all variables by their bindings.
-    var tempValue: Value = getCompoundGivenBinding(compound, binding) 
+    var tempValue: Value = gcgb(compound, binding) 
     
     // If the result is not a Compound, then return it. It could be a
     // NumberValue or an Unbound, for example.
@@ -1398,43 +1398,6 @@ object Simplifier {
     case otherwise => false
   }
   
-  
-  /**
-   * Given a Compound and a Binding, return a new Compound in which all unbound
-   * variables are replaced by their bindings, if such a binding
-   * exists.
-   */
-  def getCompoundGivenBinding(compound: Compound, binding:Map[Symbol, Value]): Compound = {
-    
-    // The final new lhs and rhs for this compound. These are
-    // built recursively.
-    var newLhs: Value = null
-    var newRhs: Value = null
-    var op: String = compound.op
-    
-    newLhs = compound.lhs match {
-      case compound:Compound => getCompoundGivenBinding(compound, binding)
-      case numberValue:NumberValue => numberValue
-      case Unbound(unboundSymbol) => variableLookupFromBinding(unboundSymbol, binding)
-    }
-    
-    newRhs = compound.rhs match {
-      case compound:Compound => getCompoundGivenBinding(compound, binding)
-      case numberValue:NumberValue => numberValue
-      case Unbound(unboundSymbol) => variableLookupFromBinding(unboundSymbol, binding)
-    }
-    
-    return Compound(op, newLhs, newRhs) 
-  }
-
-  //look up a variable given the binding
-  private def variableLookupFromBinding(sym:Symbol, binding:Map[Symbol, Value]):Value = {
-    binding.get(sym) match {
-      case Some(value) => value
-      case None => Unbound(sym)
-    }
-  }
-  
   /**
    * Returns true iff the given Value is of type NumberValue.
    */
@@ -1499,4 +1462,3 @@ object Simplifier {
   
   
 }
-
