@@ -28,7 +28,8 @@
 //
 //  Variable Declaration: 'a := 'b + 3        same as a=b+3  (b does not have to be defined, can be a parameter)
 //  Function Declaration: 'f of 'x := 'x + 1  same as f(x)=x+1
-//                        'p of ('x, 'y) when ('x === 'y) := 0 when() 'x*'y 
+//                        'p of ('x, 'y) when ('x === 'y) := 0
+//                        'p of ('x, 'y) when ()          := 'x * 'y
 //                                            same as p(x,y) = 0 if x=y, x*y otherwise
 //  Function Call:        'f('x)              calls stored function f with argument x
 //                        'sin^'x             calls predefined function sin(x). List of predefined functions: sin, cos, tan, ln, log, exp, sqrt
@@ -240,11 +241,9 @@ object MathCode {
   case class Variable(variableName:Symbol) {
     def :=(value:Value) : Unit= {
       if((variableMap contains variableName) || (functionMap contains variableName)) {
-        println(variableName)
         throw new Exception("Redefinition is not allowed!")
       }
       else if (isknownfunction(Compound("^",variableName,'xxx))) {
-        println(variableName)
         throw new Exception("variable name clashes with predefined function, not allowed")
       }
       variableMap += (variableName -> simplify(value, variableMap))
@@ -320,29 +319,34 @@ object MathCode {
     }
   }
 
-  case class Function(val applier:Symbol) {
+case class Function(val applier:Symbol) {
     def apply(arguments:Value*): Value  = {
       // First see if it is a function
       functionMap.get(applier) match {
         case Some(implementation) => implementation.getValueFromArguments(arguments)
         case None => {
           // Then see if it is a piecewise function
-          piecewiseFunctionMap.get(applier) match {
-            case Some(sequence) => {
-              // Loop through all the comparisons until one is satisfied
-              for((comparisons, implementation) <- sequence) {
-                var satisfied : Boolean = true
-                for (comparison <-comparisons){
-                  if(!comparison.isSatisfiedFromArguments(arguments:_*)){
-                    satisfied = false
-                  }
-                }
-                if (satisfied)
-                  return implementation.getValueFromArguments(arguments)
+          if(piecewiseFunctionMap contains applier) {
+            // If it is a piecewise function, there are 2 options. Either this is a recursive function call, or it is a function call
+            if(applier == currentPiecewiseName) {
+              // It is a recursive call
+              // We cheat by replacing the call itself with an unbound whose name is a UUID
+              var recursiveSymbol = Symbol(java.util.UUID.randomUUID.toString)
+              // We then keep track of it for later
+              if (!(recursiveCallMap contains recursiveSymbol)) {
+                recursiveCallMap += (recursiveSymbol -> (applier, arguments))
               }
-              throw new Exception("The supplied argument did not satisfy any of the piecewise requirements for the function!")
+              else
+              {
+                throw new Exception("Catastrophic failure!")
+              }
+              return Unbound(recursiveSymbol)
             }
-            case None =>
+            else {
+              handlePiecewiseFunctionCall(applier, arguments:_*)
+            }
+          }
+          else {
               /* We could try and implement implied multiplication here */
               throw new Exception("We do not allow implied multiplication!")
           }
@@ -386,10 +390,16 @@ object MathCode {
           else {
             piecewiseFunctionMap += (functionName -> Seq((comparisons, new FunctionImplementation(parameters, expression))))
           }
+          isInPiecewiseDefinition = false
+          currentPiecewiseName = null
         }
       }
 
-      def when (comparisons:Comparison*) = PieceRegistrar(comparisons:_*)
+      def when (comparisons:Comparison*) = {
+        isInPiecewiseDefinition = true
+        currentPiecewiseName = functionName
+        PieceRegistrar(comparisons:_*)
+      }
     }
 
     def of(parameters:Symbol*) = Registrar(parameters : _*)
@@ -1027,10 +1037,16 @@ object MathCode {
  //* STUFF TO DEAL WITH VARIABLES:
  //*****************************************************************  
   
+  // Here is part of our rcursion hack. We keep track of state through the global variables to know if we're currently in a piecewise function
+  // definition.
+  private var isInPiecewiseDefinition = false;
+  private var currentPiecewiseName : Symbol = null;
+  
   //bindings of variables stored here:
   private var variableMap:Map[Symbol,Value] = Map()
   private var functionMap:Map[Symbol, FunctionImplementation] = Map()
   private var piecewiseFunctionMap:Map[Symbol, Seq[(Seq[Comparison], FunctionImplementation)]] = Map()
+  private var recursiveCallMap : Map[Symbol, (Symbol, Seq[Value])] = Map()
   
   //known values such as pi, e .. can add more
   //if we increase precision, increase precision of these as well.. but not too much or operations with lots of these wil overflow and mess up
@@ -1041,7 +1057,26 @@ object MathCode {
   private def variableLookupFromBinding(sym:Symbol, binding:Map[Symbol, Value]):Value = {
     binding.get(sym) match {
       case Some(value) => value
-      case None => Unbound(sym)
+      case None => {
+        // (We also need to look into the recursive function call map if there isnt a match)
+        if(recursiveCallMap contains sym) {
+          var funcAndArgs = recursiveCallMap(sym)
+          var functionName = funcAndArgs._1
+          var arguments = funcAndArgs._2
+          for (index <- 0 until arguments.length){
+            var newArg = arguments(index) match {
+              case nv:NumberValue => nv
+              case umbound:Unbound => variableLookupFromBinding(umbound.sym, binding)
+              case compound:Compound => simplify(gcgb(compound, binding), binding) 
+            }
+            arguments = arguments.updated(index, newArg)
+          }
+          handlePiecewiseFunctionCall(functionName, arguments:_*)
+        }
+        else {
+          Unbound(sym)
+        }
+      }
     }
   }
   
@@ -1073,8 +1108,33 @@ object MathCode {
 
   private def simplify(v:Value, binding:Map[Symbol, Value] = variableMap):Value = 
     Simplifier.simplifier(v:Value, binding:Map[Symbol, Value])
-  private def gcgb(c:Compound,binding:Map[Symbol, Value]):Compound = 
-    Simplifier.getCompoundGivenBinding(c,binding)
+    
+  /**
+   * Given a Compound and a Binding, return a new Compound in which all unbound
+   * variables are replaced by their bindings, if such a binding
+   * exists.
+   */
+  def gcgb(c:Compound,binding:Map[Symbol, Value]):Compound = {
+    // The final new lhs and rhs for this compound. These are
+    // built recursively.
+    var newLhs: Value = null
+    var newRhs: Value = null
+    var op: String = c.op
+    
+    newLhs = c.lhs match {
+      case compound:Compound => gcgb(compound, binding)
+      case numberValue:NumberValue => numberValue
+      case Unbound(unboundSymbol) => variableLookupFromBinding(unboundSymbol, binding)
+    }
+    
+    newRhs = c.rhs match {
+      case compound:Compound => gcgb(compound, binding)
+      case numberValue:NumberValue => numberValue
+      case Unbound(unboundSymbol) => variableLookupFromBinding(unboundSymbol, binding)
+    }
+    
+    return Compound(op, newLhs, newRhs) 
+  }
     
 
   // Returns the LCM of a and b
@@ -1085,8 +1145,9 @@ object MathCode {
     value match {
       case NumberValue(_,_) => return
       case Unbound(sym:Symbol) => {
-        if(!(symbolicNames contains sym))
+        if(!(symbolicNames contains sym) && !(recursiveCallMap contains sym)){ // This matters because it could be a recursive call
           throw new Exception("Out of scope variable detected. Valid variables are " + symbolicNames.toString() + ", found " + sym.toString())
+        }
       }
       case Compound(_, lhs, rhs) => {
         ensureValueOnlyContainsUnboundWithSymbolicNames(lhs, symbolicNames)
@@ -1114,6 +1175,21 @@ object MathCode {
     return bindings
   }
   
+  private def handlePiecewiseFunctionCall(functionName:Symbol, arguments:Value*) : Value= {
+    var sequence = piecewiseFunctionMap(functionName)
+    // Loop through all the comparisons until one is satisfied
+    for((comparisons, implementation) <- sequence) {
+      var satisfied : Boolean = true
+      for (comparison <-comparisons){
+        if(!comparison.isSatisfiedFromArguments(arguments:_*)){
+          satisfied = false
+        }
+      }
+      if (satisfied)
+        return implementation.getValueFromArguments(arguments)
+    }
+    throw new Exception("The supplied argument did not satisfy any of the piecewise requirements for the function!")
+  }
   
   /**
    * Returns true iff the given compound is made purely of NumberValues.
